@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { open } from '@tauri-apps/plugin-shell';
+import { save, open as openDialog } from '@tauri-apps/plugin-dialog';
+import { writeTextFile, readTextFile } from '@tauri-apps/plugin-fs';
 import { 
   Plus, 
   Server, 
@@ -25,7 +27,10 @@ import {
   PlayCircle,
   Eye,
   EyeOff,
-  Shield
+  Shield,
+  Download,
+  Upload,
+  FileText
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -44,8 +49,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
-import { api, type RelayStation, type RelayStationAdapter, type CreateRelayStationRequest, type RelayStationToken, type StationInfo, type UserInfo, type StationLogEntry, type LogPaginationResponse, type ConnectionTestResult, type CreateTokenRequest, type UpdateTokenRequest, type TokenGroup } from '@/lib/api';
+import { api, type RelayStation, type RelayStationAdapter, type CreateRelayStationRequest, type RelayStationToken, type StationInfo, type UserInfo, type StationLogEntry, type LogPaginationResponse, type ConnectionTestResult, type CreateTokenRequest, type UpdateTokenRequest, type TokenGroup, type ConfigUsageStatus, type RelayStationExport } from '@/lib/api';
 import { Toast } from '@/components/ui/toast';
+import RelayStationConfigDialog from './RelayStationConfigDialog';
 
 interface RelayStationManagerProps {
   onBack: () => void;
@@ -832,6 +838,8 @@ const StationDetailView: React.FC<DetailViewProps> = ({ station, onBack, onStati
   const [deletingStation, setDeletingStation] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [currentProviderConfig, setCurrentProviderConfig] = useState<any>(null);
+  const [showConfigDialog, setShowConfigDialog] = useState(false);
+  const [configUsageStatus, setConfigUsageStatus] = useState<ConfigUsageStatus[]>([]);
   
   // Log filtering state
   const [logFilters, setLogFilters] = useState({
@@ -871,7 +879,29 @@ const StationDetailView: React.FC<DetailViewProps> = ({ station, onBack, onStati
     // Always load basic info and user info on mount
     loadBasicData();
     loadCurrentProviderConfig();
+    loadConfigUsageStatus();
   }, [station.id]);
+
+  // 定期检查配置变化
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadCurrentProviderConfig();
+      loadConfigUsageStatus();
+    }, 3000); // 每3秒检查一次
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // 在组件获得焦点时也检查配置
+  useEffect(() => {
+    const handleFocus = () => {
+      loadCurrentProviderConfig();
+      loadConfigUsageStatus();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, []);
 
   const loadCurrentProviderConfig = async () => {
     try {
@@ -882,14 +912,33 @@ const StationDetailView: React.FC<DetailViewProps> = ({ station, onBack, onStati
     }
   };
 
+  const loadConfigUsageStatus = async () => {
+    try {
+      const status = await api.getConfigUsageStatus();
+      setConfigUsageStatus(status);
+    } catch (error) {
+      console.error('Failed to load config usage status:', error);
+    }
+  };
+
   // 检查令牌是否被应用
   const isTokenApplied = (token: RelayStationToken): boolean => {
+    // 首先检查配置使用状态记录是否与当前配置匹配
+    const usageStatus = configUsageStatus.find(status => 
+      status.station_id === station.id && 
+      status.is_active &&
+      status.token === `sk-${token.token}` &&
+      status.base_url === currentProviderConfig?.anthropic_base_url &&
+      currentProviderConfig?.anthropic_auth_token === `sk-${token.token}`
+    );
+
+    if (usageStatus) {
+      return true;
+    }
+
+    // 如果没有使用状态记录，回退到配置比较
     if (!currentProviderConfig) return false;
-    
-    // 检查API地址是否匹配
     const baseUrlMatches = currentProviderConfig.anthropic_base_url === station.api_url;
-    
-    // 检查认证令牌是否匹配
     const authTokenMatches = currentProviderConfig.anthropic_auth_token === `sk-${token.token}`;
     
     return baseUrlMatches && authTokenMatches;
@@ -897,9 +946,22 @@ const StationDetailView: React.FC<DetailViewProps> = ({ station, onBack, onStati
 
   // 检查自定义中转站是否被应用
   const isCustomStationApplied = (): boolean => {
-    if (!currentProviderConfig || station.adapter !== 'custom') return false;
+    if (station.adapter !== 'custom') return false;
     
-    // 检查API地址和认证令牌是否匹配
+    // 首先检查配置使用状态记录是否与当前配置匹配
+    const usageStatus = configUsageStatus.find(status => 
+      status.station_id === station.id && 
+      status.is_active &&
+      status.base_url === currentProviderConfig?.anthropic_base_url &&
+      status.token === currentProviderConfig?.anthropic_auth_token
+    );
+    
+    if (usageStatus) {
+      return true;
+    }
+    
+    // 如果没有使用状态记录，回退到配置比较
+    if (!currentProviderConfig) return false;
     const baseUrlMatches = currentProviderConfig.anthropic_base_url === station.api_url;
     const authTokenMatches = currentProviderConfig.anthropic_auth_token === station.system_token;
     
@@ -1361,55 +1423,23 @@ const StationDetailView: React.FC<DetailViewProps> = ({ station, onBack, onStati
   };
 
   const handleApplyCustomStation = async () => {
-    try {
-      // 对于自定义类型的中转站，直接应用其配置
-      const providerConfig = {
-        id: `custom-${station.id}`, // 生成唯一ID
-        name: station.name,
-        description: station.description || `自定义配置 - ${station.name}`,
-        base_url: station.api_url,
-        auth_token: station.system_token, // 对于自定义类型，system_token写入ANTHROPIC_AUTH_TOKEN
-      };
-      
-      await api.switchProviderConfig(providerConfig);
-      await loadCurrentProviderConfig(); // 重新加载当前配置
-      setToastMessage({ 
-        message: `已应用中转站 "${station.name}" 的配置！`, 
-        type: 'success' 
-      });
-    } catch (error) {
-      console.error('Failed to apply custom station:', error);
-      setToastMessage({ 
-        message: '应用配置失败，请稍后重试。', 
-        type: 'error' 
-      });
-    }
+    // 显示配置对话框而不是直接应用
+    setShowConfigDialog(true);
   };
 
-  const handleApplyToken = async (token: RelayStationToken) => {
-    try {
-      // 创建代理商配置从令牌和中转站信息
-      const providerConfig = {
-        id: `token-${station.id}-${token.id}`, // 生成唯一ID
-        name: `${station.name} - ${token.name}`,
-        description: `从中转站 ${station.name} 应用的令牌配置`,
-        base_url: station.api_url,
-        auth_token: `sk-${token.token}`, // 使用sk-前缀写入ANTHROPIC_AUTH_TOKEN
-      };
-      
-      await api.switchProviderConfig(providerConfig);
-      await loadCurrentProviderConfig(); // 重新加载当前配置
-      setToastMessage({ 
-        message: `已应用令牌 "${token.name}" 的配置！`, 
-        type: 'success' 
-      });
-    } catch (error) {
-      console.error('Failed to apply token:', error);
-      setToastMessage({ 
-        message: '应用令牌配置失败，请稍后重试。', 
-        type: 'error' 
-      });
-    }
+  const handleApplyToken = async () => {
+    // 显示配置对话框而不是直接应用
+    setShowConfigDialog(true);
+  };
+
+  const handleConfigApplied = async () => {
+    // 配置应用后的回调，重新加载当前配置和使用状态并显示成功消息
+    await loadCurrentProviderConfig();
+    await loadConfigUsageStatus();
+    setToastMessage({ 
+      message: `已成功应用中转站 "${station.name}" 的配置！`, 
+      type: 'success' 
+    });
   };
 
   const handleCopyToken = async (token: string, tokenName: string) => {
@@ -1658,12 +1688,11 @@ const StationDetailView: React.FC<DetailViewProps> = ({ station, onBack, onStati
                           <Button 
                             onClick={handleApplyCustomStation} 
                             className={isCustomStationApplied() ? "bg-green-600 hover:bg-green-700 text-white" : "bg-green-600 hover:bg-green-700 text-white"}
-                            disabled={isCustomStationApplied()}
                           >
                             {isCustomStationApplied() ? (
                               <>
                                 <Shield className="h-4 w-4 mr-2" />
-                                已应用
+                                重新配置
                               </>
                             ) : (
                               <>
@@ -1792,11 +1821,10 @@ const StationDetailView: React.FC<DetailViewProps> = ({ station, onBack, onStati
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleApplyToken(token);
+                                  handleApplyToken();
                                 }}
-                                title={isTokenApplied(token) ? '已应用此令牌' : '应用此令牌配置'}
+                                title={isTokenApplied(token) ? '重新配置此令牌' : '应用此令牌配置'}
                                 className={isTokenApplied(token) ? "bg-green-600 hover:bg-green-700 text-white" : ""}
-                                disabled={isTokenApplied(token)}
                               >
                                 {isTokenApplied(token) ? (
                                   <Shield className="h-4 w-4" />
@@ -2487,6 +2515,14 @@ const StationDetailView: React.FC<DetailViewProps> = ({ station, onBack, onStati
         </DialogContent>
       </Dialog>
       
+      {/* Relay Station Configuration Dialog */}
+      <RelayStationConfigDialog
+        open={showConfigDialog}
+        onOpenChange={setShowConfigDialog}
+        station={station}
+        onConfigApplied={handleConfigApplied}
+      />
+      
       {/* Toast */}
       {toastMessage && (
         <div className="fixed bottom-0 left-0 right-0 z-50 flex justify-center p-4 pointer-events-none">
@@ -2511,36 +2547,210 @@ const RelayStationManager: React.FC<RelayStationManagerProps> = ({ onBack }) => 
   const [selectedStation, setSelectedStation] = useState<RelayStation | null>(null);
   const [toastMessage, setToastMessage] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [currentProviderConfig, setCurrentProviderConfig] = useState<any>(null);
+  const [showConfigDialog, setShowConfigDialog] = useState(false);
+  const [configStation, setConfigStation] = useState<RelayStation | null>(null);
+  const [configUsageStatus, setConfigUsageStatus] = useState<ConfigUsageStatus[]>([]);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [editingStation, setEditingStation] = useState<RelayStation | null>(null);
+  const [deletingStation, setDeletingStation] = useState<RelayStation | null>(null);
+  const [showImportDialog, setShowImportDialog] = useState(false);
+  const [importData, setImportData] = useState<RelayStationExport | null>(null);
+  const [overwriteExisting, setOverwriteExisting] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [isImporting, setIsImporting] = useState(false);
+
+  const handleExportStations = async (selectedStationIds?: string[]) => {
+    setIsExporting(true);
+    try {
+      const exportData = await api.exportRelayStations(selectedStationIds);
+      
+      // Format timestamp for filename
+      const timestamp = new Date().toISOString().slice(0, 19).replace(/[:-]/g, '').replace('T', '_');
+      const filename = `relay_stations_${timestamp}.json`;
+      
+      // Save file using Tauri dialog
+      const filePath = await save({
+        defaultPath: filename,
+        filters: [{
+          name: 'JSON',
+          extensions: ['json']
+        }]
+      });
+      
+      if (filePath) {
+        // Write the file content
+        await writeTextFile(filePath, JSON.stringify(exportData, null, 2));
+        
+        setToastMessage({
+          message: `已成功导出 ${exportData.stations.length} 个中转站到 ${filePath}`,
+          type: 'success'
+        });
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+      setToastMessage({
+        message: '导出中转站失败，请稍后重试。',
+        type: 'error'
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const handleImportStations = async () => {
+    try {
+      // Open file dialog
+      const selected = await openDialog({
+        filters: [{
+          name: 'JSON',
+          extensions: ['json']
+        }],
+        multiple: false
+      });
+      
+      if (selected && typeof selected === 'string') {
+        // Read file content
+        const content = await readTextFile(selected);
+        const importData: RelayStationExport = JSON.parse(content);
+        
+        // Validate import data
+        if (!importData.version || !importData.stations || !Array.isArray(importData.stations)) {
+          setToastMessage({
+            message: '无效的导入文件格式。',
+            type: 'error'
+          });
+          return;
+        }
+        
+        setImportData(importData);
+        setShowImportDialog(true);
+      }
+    } catch (error) {
+      console.error('Import failed:', error);
+      setToastMessage({
+        message: '读取导入文件失败，请检查文件格式。',
+        type: 'error'
+      });
+    }
+  };
+
+  const confirmImportStations = async () => {
+    if (!importData) return;
+    
+    setIsImporting(true);
+    try {
+      const importedStations = await api.importRelayStations(importData, overwriteExisting);
+      
+      // Reload stations list
+      await loadStations();
+      
+      setToastMessage({
+        message: `已成功导入 ${importedStations.length} 个中转站：${importedStations.join(', ')}`,
+        type: 'success'
+      });
+      
+      setShowImportDialog(false);
+      setImportData(null);
+      setOverwriteExisting(false);
+    } catch (error) {
+      console.error('Import failed:', error);
+      setToastMessage({
+        message: '导入中转站失败，请稍后重试。',
+        type: 'error'
+      });
+    } finally {
+      setIsImporting(false);
+    }
+  };
 
   const handleApplyStationFromList = async (station: RelayStation) => {
-    try {
-      // 对于自定义类型的中转站，直接应用其配置
-      const providerConfig = {
-        id: `custom-${station.id}`, // 生成唯一ID
-        name: station.name,
-        description: station.description || `自定义配置 - ${station.name}`,
-        base_url: station.api_url,
-        auth_token: station.system_token, // 对于自定义类型，system_token写入ANTHROPIC_AUTH_TOKEN
-      };
-      
-      await api.switchProviderConfig(providerConfig);
-      await loadCurrentProviderConfig(); // 重新加载当前配置
+    // 显示配置对话框而不是直接应用
+    setConfigStation(station);
+    setShowConfigDialog(true);
+  };
+
+  const handleConfigAppliedFromList = async () => {
+    // 配置应用后的回调，重新加载当前配置和使用状态并显示成功消息
+    await loadCurrentProviderConfig();
+    await loadConfigUsageStatus();
+    if (configStation) {
       setToastMessage({ 
-        message: `已应用中转站 "${station.name}" 的配置！`, 
+        message: `已成功应用中转站 "${configStation.name}" 的配置！`, 
+        type: 'success' 
+      });
+    }
+    setConfigStation(null);
+  };
+
+  const handleEditStation = (station: RelayStation) => {
+    setEditingStation(station);
+    setShowEditDialog(true);
+  };
+
+  const handleDeleteStation = (station: RelayStation) => {
+    setDeletingStation(station);
+    setShowDeleteDialog(true);
+  };
+
+  const handleStationEdited = async () => {
+    // 重新加载中转站列表
+    await loadStations();
+    setShowEditDialog(false);
+    setEditingStation(null);
+    setToastMessage({ 
+      message: '中转站配置更新成功！', 
+      type: 'success' 
+    });
+  };
+
+  const confirmDeleteStation = async () => {
+    if (!deletingStation) return;
+    
+    try {
+      await api.deleteRelayStation(deletingStation.id);
+      await loadStations();
+      setToastMessage({ 
+        message: `中转站 "${deletingStation.name}" 已删除成功！`, 
         type: 'success' 
       });
     } catch (error) {
-      console.error('Failed to apply custom station:', error);
+      console.error('Failed to delete station:', error);
       setToastMessage({ 
-        message: '应用配置失败，请稍后重试。', 
+        message: '删除中转站失败，请稍后重试。', 
         type: 'error' 
       });
+    } finally {
+      setShowDeleteDialog(false);
+      setDeletingStation(null);
     }
   };
 
   useEffect(() => {
     loadStations();
     loadCurrentProviderConfig();
+    loadConfigUsageStatus();
+  }, []);
+
+  // 定期检查配置变化
+  useEffect(() => {
+    const interval = setInterval(() => {
+      loadCurrentProviderConfig();
+      loadConfigUsageStatus();
+    }, 3000); // 每3秒检查一次
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // 在组件获得焦点时也检查配置
+  useEffect(() => {
+    const handleFocus = () => {
+      loadCurrentProviderConfig();
+      loadConfigUsageStatus();
+    };
+
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
   }, []);
 
   const loadCurrentProviderConfig = async () => {
@@ -2552,11 +2762,33 @@ const RelayStationManager: React.FC<RelayStationManagerProps> = ({ onBack }) => 
     }
   };
 
+  const loadConfigUsageStatus = async () => {
+    try {
+      const status = await api.getConfigUsageStatus();
+      setConfigUsageStatus(status);
+    } catch (error) {
+      console.error('Failed to load config usage status:', error);
+    }
+  };
+
   // 检查自定义中转站是否被应用
   const isCustomStationApplied = (station: RelayStation): boolean => {
-    if (!currentProviderConfig || station.adapter !== 'custom') return false;
+    if (station.adapter !== 'custom') return false;
     
-    // 检查API地址和认证令牌是否匹配
+    // 首先检查配置使用状态记录是否与当前配置匹配
+    const usageStatus = configUsageStatus.find(status => 
+      status.station_id === station.id && 
+      status.is_active &&
+      status.base_url === currentProviderConfig?.anthropic_base_url &&
+      status.token === currentProviderConfig?.anthropic_auth_token
+    );
+    
+    if (usageStatus) {
+      return true;
+    }
+    
+    // 如果没有匹配的使用状态记录，回退到配置比较
+    if (!currentProviderConfig) return false;
     const baseUrlMatches = currentProviderConfig.anthropic_base_url === station.api_url;
     const authTokenMatches = currentProviderConfig.anthropic_auth_token === station.system_token;
     
@@ -2567,9 +2799,31 @@ const RelayStationManager: React.FC<RelayStationManagerProps> = ({ onBack }) => 
   const getAppliedConfigInfo = (): { station?: RelayStation; baseUrl?: string; partialKey?: string } | null => {
     if (!currentProviderConfig) return null;
 
-    // 检查是否有匹配的自定义中转站
+    // 首先检查配置使用状态记录是否与当前配置匹配
+    const activeUsageStatus = configUsageStatus.find(status => 
+      status.is_active && 
+      status.base_url === currentProviderConfig.anthropic_base_url &&
+      status.token === currentProviderConfig.anthropic_auth_token
+    );
+
+    if (activeUsageStatus) {
+      // 找到对应的中转站信息
+      const matchedStation = stations.find(station => station.id === activeUsageStatus.station_id);
+      
+      return {
+        station: matchedStation,
+        baseUrl: currentProviderConfig.anthropic_base_url,
+        partialKey: currentProviderConfig.anthropic_auth_token ? 
+          `${currentProviderConfig.anthropic_auth_token.substring(0, 8)}...${currentProviderConfig.anthropic_auth_token.substring(currentProviderConfig.anthropic_auth_token.length - 4)}` : 
+          undefined
+      };
+    }
+
+    // 如果没有匹配的使用状态记录，检查是否有匹配的自定义中转站（向后兼容）
     const appliedCustomStation = stations.find(station => 
-      station.adapter === 'custom' && isCustomStationApplied(station)
+      station.adapter === 'custom' && 
+      currentProviderConfig.anthropic_base_url === station.api_url &&
+      currentProviderConfig.anthropic_auth_token === station.system_token
     );
 
     if (appliedCustomStation) {
@@ -2582,7 +2836,7 @@ const RelayStationManager: React.FC<RelayStationManagerProps> = ({ onBack }) => 
       };
     }
 
-    // 如果没有匹配的自定义中转站，但有当前配置，显示基本信息
+    // 最后，如果当前配置与任何记录的状态都不匹配，说明是外部配置，仅显示基本信息
     if (currentProviderConfig.anthropic_base_url) {
       return {
         baseUrl: currentProviderConfig.anthropic_base_url,
@@ -2650,10 +2904,36 @@ const RelayStationManager: React.FC<RelayStationManagerProps> = ({ onBack }) => 
             <p className="text-muted-foreground">管理Claude API中转站配置</p>
           </div>
         </div>
-        <Button onClick={() => setShowAddDialog(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          添加中转站
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => handleExportStations()}
+            disabled={isExporting || stations.length === 0}
+          >
+            {isExporting ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4 mr-2" />
+            )}
+            导出中转站
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleImportStations}
+            disabled={isImporting}
+          >
+            {isImporting ? (
+              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+            ) : (
+              <Upload className="h-4 w-4 mr-2" />
+            )}
+            导入中转站
+          </Button>
+          <Button onClick={() => setShowAddDialog(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            添加中转站
+          </Button>
+        </div>
       </div>
 
       {/* Current Applied Configuration Status */}
@@ -2759,12 +3039,11 @@ const RelayStationManager: React.FC<RelayStationManagerProps> = ({ onBack }) => 
                       size="sm"
                       onClick={() => handleApplyStationFromList(station)}
                       className={isCustomStationApplied(station) ? "bg-green-600 hover:bg-green-700 text-white" : "bg-green-600 hover:bg-green-700 text-white"}
-                      disabled={isCustomStationApplied(station)}
                     >
                       {isCustomStationApplied(station) ? (
                         <>
                           <Shield className="h-4 w-4 mr-2" />
-                          已应用
+                          重新配置
                         </>
                       ) : (
                         <>
@@ -2774,6 +3053,25 @@ const RelayStationManager: React.FC<RelayStationManagerProps> = ({ onBack }) => 
                       )}
                     </Button>
                   )}
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleEditStation(station)}
+                    title="编辑中转站"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+                  
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleDeleteStation(station)}
+                    className="text-red-600 hover:text-red-700 hover:border-red-300"
+                    title="删除中转站"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
                   
                   <Button
                     variant="outline"
@@ -2799,6 +3097,151 @@ const RelayStationManager: React.FC<RelayStationManagerProps> = ({ onBack }) => 
           setShowAddDialog(false);
         }}
       />
+      
+      {/* Edit Station Dialog */}
+      <AddStationDialog
+        open={showEditDialog}
+        onOpenChange={setShowEditDialog}
+        editMode={true}
+        editStation={editingStation || undefined}
+        onStationAdded={handleStationEdited}
+      />
+      
+      {/* Delete Station Confirmation Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle>确认删除中转站</DialogTitle>
+            <DialogDescription>
+              您确定要删除中转站 "{deletingStation?.name}" 吗？此操作不可撤销。
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowDeleteDialog(false)}
+            >
+              取消
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmDeleteStation}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              确认删除
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Relay Station Configuration Dialog */}
+      {configStation && (
+        <RelayStationConfigDialog
+          open={showConfigDialog}
+          onOpenChange={setShowConfigDialog}
+          station={configStation}
+          onConfigApplied={handleConfigAppliedFromList}
+        />
+      )}
+      
+      {/* Import Station Dialog */}
+      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
+        <DialogContent className="sm:max-w-[600px] max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Upload className="h-5 w-5" />
+              导入中转站
+            </DialogTitle>
+            <DialogDescription>
+              从JSON文件导入中转站配置。请检查要导入的中转站列表。
+            </DialogDescription>
+          </DialogHeader>
+          
+          {importData && (
+            <div className="space-y-4 py-4">
+              <div className="bg-muted/30 rounded-lg p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">导入文件信息</span>
+                </div>
+                <div className="space-y-1 text-xs text-muted-foreground">
+                  <p><span className="font-medium">版本:</span> {importData.version}</p>
+                  <p><span className="font-medium">导出时间:</span> {new Date(importData.exported_at * 1000).toLocaleString()}</p>
+                  <p><span className="font-medium">中转站数量:</span> {importData.stations.length}</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <h4 className="text-sm font-medium">要导入的中转站：</h4>
+                <div className="max-h-60 overflow-y-auto border rounded-lg">
+                  {importData.stations.map((station, index) => (
+                    <div key={index} className="flex items-center justify-between p-3 border-b last:border-b-0">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <Server className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{station.name}</span>
+                          <Badge variant="outline" className="text-xs">
+                            {station.adapter === 'custom' ? '自定义' : station.adapter.toUpperCase()}
+                          </Badge>
+                          {!station.enabled && (
+                            <Badge variant="destructive" className="text-xs">已禁用</Badge>
+                          )}
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                          <p>{station.description || '无描述'}</p>
+                          <p>{station.api_url}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="overwrite-existing"
+                  checked={overwriteExisting}
+                  onCheckedChange={setOverwriteExisting}
+                />
+                <Label htmlFor="overwrite-existing" className="text-sm">
+                  覆盖同名的现有中转站
+                </Label>
+              </div>
+              
+              {!overwriteExisting && (
+                <div className="text-xs text-muted-foreground bg-blue-50 dark:bg-blue-950/20 p-2 rounded">
+                  如果存在同名中转站，将跳过导入。启用"覆盖现有中转站"选项将更新现有配置。
+                </div>
+              )}
+            </div>
+          )}
+
+          <DialogFooter className="gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setShowImportDialog(false);
+                setImportData(null);
+                setOverwriteExisting(false);
+              }}
+              disabled={isImporting}
+            >
+              取消
+            </Button>
+            <Button
+              onClick={confirmImportStations}
+              disabled={isImporting || !importData}
+            >
+              {isImporting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : (
+                <Upload className="h-4 w-4 mr-2" />
+              )}
+              {isImporting ? '导入中...' : `导入 ${importData?.stations.length || 0} 个中转站`}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       
       {/* Toast */}
       {toastMessage && (

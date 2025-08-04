@@ -24,6 +24,10 @@ pub struct SlashCommand {
     pub content: String,
     /// Optional description from frontmatter
     pub description: Option<String>,
+    /// I18n key for content (used for default commands)
+    pub content_i18n_key: Option<String>,
+    /// I18n key for description (used for default commands)
+    pub description_i18n_key: Option<String>,
     /// Allowed tools from frontmatter
     pub allowed_tools: Vec<String>,
     /// Whether the command has bash commands (!)
@@ -159,6 +163,8 @@ fn load_command_from_file(
         file_path: file_path.to_string_lossy().to_string(),
         content: body,
         description,
+        content_i18n_key: None, // Custom commands don't use i18n keys
+        description_i18n_key: None, // Custom commands don't use i18n keys
         allowed_tools,
         has_bash_commands,
         has_file_references,
@@ -207,8 +213,186 @@ fn create_default_commands() -> Vec<SlashCommand> {
             scope: "default".to_string(),
             namespace: None,
             file_path: "".to_string(),
-            content: "Add additional working directories".to_string(),
-            description: Some("Add additional working directories".to_string()),
+            content: "Add a new working directory".to_string(), // Fallback text
+            description: Some("Add a new working directory".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.addDir.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.addDir.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: false,
+        },
+        SlashCommand {
+            id: "default-agents".to_string(),
+            name: "agents".to_string(),
+            full_command: "/agents".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "Manage agent configurations".to_string(), // Fallback text
+            description: Some("Manage agent configurations".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.agents.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.agents.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: false,
+        },
+        SlashCommand {
+            id: "default-clear".to_string(),
+            name: "clear".to_string(),
+            full_command: "/clear".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "Clear conversation history and free up context".to_string(), // Fallback text
+            description: Some("Clear conversation history and free up context (reset)".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.clear.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.clear.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: false,
+        },
+        SlashCommand {
+            id: "default-compact".to_string(),
+            name: "compact".to_string(),
+            full_command: "/compact".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "Clear conversation history but keep a summary in context".to_string(), // Fallback text
+            description: Some("Clear conversation history but keep a summary in context".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.compact.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.compact.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: true,
+        },
+        SlashCommand {
+            id: "default-config".to_string(),
+            name: "config".to_string(),
+            full_command: "/config".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "Open config panel".to_string(), // Fallback text
+            description: Some("Open config panel (theme)".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.config.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.config.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: false,
+        },
+        SlashCommand {
+            id: "default-cost".to_string(),
+            name: "cost".to_string(),
+            full_command: "/cost".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "Show the total cost and duration of the current session".to_string(), // Fallback text
+            description: Some("Show the total cost and duration of the current session".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.cost.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.cost.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: false,
+        },
+        SlashCommand {
+            id: "default-doctor".to_string(),
+            name: "doctor".to_string(),
+            full_command: "/doctor".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "Diagnose and verify your Claude Code installation and settings".to_string(), // Fallback text
+            description: Some("Diagnose and verify your Claude Code installation and settings".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.doctor.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.doctor.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: false,
+        },
+        SlashCommand {
+            id: "default-exit".to_string(),
+            name: "exit".to_string(),
+            full_command: "/exit".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "Exit the REPL".to_string(), // Fallback text
+            description: Some("Exit the REPL (quit)".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.exit.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.exit.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: false,
+        },
+        SlashCommand {
+            id: "default-export".to_string(),
+            name: "export".to_string(),
+            full_command: "/export".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "Export the current conversation to a file or clipboard".to_string(), // Fallback text
+            description: Some("Export the current conversation to a file or clipboard".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.export.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.export.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: false,
+        },
+        SlashCommand {
+            id: "default-help".to_string(),
+            name: "help".to_string(),
+            full_command: "/help".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "Show help and available commands".to_string(), // Fallback text
+            description: Some("Show help and available commands".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.help.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.help.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: false,
+        },
+        SlashCommand {
+            id: "default-hooks".to_string(),
+            name: "hooks".to_string(),
+            full_command: "/hooks".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "Manage hook configurations for tool events".to_string(), // Fallback text
+            description: Some("Manage hook configurations for tool events".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.hooks.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.hooks.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: false,
+        },
+        SlashCommand {
+            id: "default-ide".to_string(),
+            name: "ide".to_string(),
+            full_command: "/ide".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "Manage IDE integrations and show status".to_string(), // Fallback text
+            description: Some("Manage IDE integrations and show status".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.ide.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.ide.description".to_string()),
             allowed_tools: vec![],
             has_bash_commands: false,
             has_file_references: false,
@@ -221,8 +405,186 @@ fn create_default_commands() -> Vec<SlashCommand> {
             scope: "default".to_string(),
             namespace: None,
             file_path: "".to_string(),
-            content: "Initialize project with CLAUDE.md guide".to_string(),
-            description: Some("Initialize project with CLAUDE.md guide".to_string()),
+            content: "Initialize a new CLAUDE.md file with codebase documentation".to_string(), // Fallback text
+            description: Some("Initialize a new CLAUDE.md file with codebase documentation".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.init.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.init.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: false,
+        },
+        SlashCommand {
+            id: "default-install-github-app".to_string(),
+            name: "install-github-app".to_string(),
+            full_command: "/install-github-app".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "Set up Claude GitHub Actions for a repository".to_string(), // Fallback text
+            description: Some("Set up Claude GitHub Actions for a repository".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.installGithubApp.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.installGithubApp.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: false,
+        },
+        SlashCommand {
+            id: "default-login".to_string(),
+            name: "login".to_string(),
+            full_command: "/login".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "Sign in with your Anthropic account".to_string(), // Fallback text
+            description: Some("Sign in with your Anthropic account".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.login.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.login.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: false,
+        },
+        SlashCommand {
+            id: "default-logout".to_string(),
+            name: "logout".to_string(),
+            full_command: "/logout".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "Sign out from your Anthropic account".to_string(), // Fallback text
+            description: Some("Sign out from your Anthropic account".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.logout.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.logout.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: false,
+        },
+        SlashCommand {
+            id: "default-mcp".to_string(),
+            name: "mcp".to_string(),
+            full_command: "/mcp".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "Manage MCP servers".to_string(), // Fallback text
+            description: Some("Manage MCP servers".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.mcp.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.mcp.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: false,
+        },
+        SlashCommand {
+            id: "default-memory".to_string(),
+            name: "memory".to_string(),
+            full_command: "/memory".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "Edit Claude memory files".to_string(), // Fallback text
+            description: Some("Edit Claude memory files".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.memory.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.memory.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: false,
+        },
+        SlashCommand {
+            id: "default-migrate-installer".to_string(),
+            name: "migrate-installer".to_string(),
+            full_command: "/migrate-installer".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "Migrate from global npm installation to local installation".to_string(), // Fallback text
+            description: Some("Migrate from global npm installation to local installation".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.migrateInstaller.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.migrateInstaller.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: false,
+        },
+        SlashCommand {
+            id: "default-model".to_string(),
+            name: "model".to_string(),
+            full_command: "/model".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "Set the AI model for Claude Code".to_string(), // Fallback text
+            description: Some("Set the AI model for Claude Code".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.model.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.model.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: false,
+        },
+        SlashCommand {
+            id: "default-permissions".to_string(),
+            name: "permissions".to_string(),
+            full_command: "/permissions".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "Manage allow & deny tool permission rules".to_string(), // Fallback text
+            description: Some("Manage allow & deny tool permission rules (allowed-tools)".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.permissions.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.permissions.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: false,
+        },
+        SlashCommand {
+            id: "default-pr-comments".to_string(),
+            name: "pr-comments".to_string(),
+            full_command: "/pr-comments".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "Get comments from a GitHub pull request".to_string(), // Fallback text
+            description: Some("Get comments from a GitHub pull request".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.prComments.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.prComments.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: false,
+        },
+        SlashCommand {
+            id: "default-release-notes".to_string(),
+            name: "release-notes".to_string(),
+            full_command: "/release-notes".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "View release notes".to_string(), // Fallback text
+            description: Some("View release notes".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.releaseNotes.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.releaseNotes.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: false,
+        },
+        SlashCommand {
+            id: "default-resume".to_string(),
+            name: "resume".to_string(),
+            full_command: "/resume".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "Resume a conversation".to_string(), // Fallback text
+            description: Some("Resume a conversation".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.resume.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.resume.description".to_string()),
             allowed_tools: vec![],
             has_bash_commands: false,
             has_file_references: false,
@@ -235,8 +597,58 @@ fn create_default_commands() -> Vec<SlashCommand> {
             scope: "default".to_string(),
             namespace: None,
             file_path: "".to_string(),
-            content: "Request code review".to_string(),
-            description: Some("Request code review".to_string()),
+            content: "Review a pull request".to_string(), // Fallback text
+            description: Some("Review a pull request".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.review.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.review.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: false,
+        },
+        SlashCommand {
+            id: "default-status".to_string(),
+            name: "status".to_string(),
+            full_command: "/status".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "Show Claude Code status including version, model, account, API connectivity, and tool statuses".to_string(), // Fallback text
+            description: Some("Show Claude Code status including version, model, account, API connectivity, and tool statuses".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.status.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.status.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: false,
+        },
+        SlashCommand {
+            id: "default-upgrade".to_string(),
+            name: "upgrade".to_string(),
+            full_command: "/upgrade".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "Upgrade to Max for higher rate limits and more Opus".to_string(), // Fallback text
+            description: Some("Upgrade to Max for higher rate limits and more Opus".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.upgrade.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.upgrade.description".to_string()),
+            allowed_tools: vec![],
+            has_bash_commands: false,
+            has_file_references: false,
+            accepts_arguments: false,
+        },
+        SlashCommand {
+            id: "default-vim".to_string(),
+            name: "vim".to_string(),
+            full_command: "/vim".to_string(),
+            scope: "default".to_string(),
+            namespace: None,
+            file_path: "".to_string(),
+            content: "Toggle between Vim and Normal editing modes".to_string(), // Fallback text
+            description: Some("Toggle between Vim and Normal editing modes".to_string()), // Fallback text
+            content_i18n_key: Some("defaultSlashCommands.vim.content".to_string()),
+            description_i18n_key: Some("defaultSlashCommands.vim.description".to_string()),
             allowed_tools: vec![],
             has_bash_commands: false,
             has_file_references: false,

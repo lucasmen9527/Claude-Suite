@@ -235,6 +235,7 @@ export const ClaudeStatusIndicator: React.FC<ClaudeStatusIndicatorProps> = ({
     <div className={cn("flex items-center gap-2", className)}>
       <TooltipProvider>
         <Popover
+          modal={true}
           trigger={
             <Button
               variant="ghost"

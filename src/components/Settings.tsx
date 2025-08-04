@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   ArrowLeft, 
@@ -7,6 +7,11 @@ import {
   Save, 
   AlertCircle,
   Loader2,
+  Info,
+  Download,
+  ExternalLink,
+  Database,
+  CheckCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +22,9 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { 
   api, 
   type ClaudeSettings,
-  type ClaudeInstallation
+  type ClaudeInstallation,
+  type AppInfo,
+  type UpdateInfo
 } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Toast, ToastContainer } from "@/components/ui/toast";
@@ -91,12 +98,75 @@ export const Settings: React.FC<SettingsProps> = ({
   const [userHooksChanged, setUserHooksChanged] = useState(false);
   const getUserHooks = React.useRef<(() => any) | null>(null);
   
+  // About page state
+  const [appInfo, setAppInfo] = useState<AppInfo | null>(null);
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null);
+  const [checkingUpdates, setCheckingUpdates] = useState(false);
+  const [updateError, setUpdateError] = useState<string | null>(null);
+  
   // 挂载时加载设置
   // Load settings on mount
   useEffect(() => {
     loadSettings();
     loadClaudeBinaryPath();
+    loadAppInfo();
   }, []);
+
+  /**
+   * 加载应用信息
+   * Loads application information
+   */
+  const loadAppInfo = async () => {
+    try {
+      const info = await api.getAppInfo();
+      setAppInfo(info);
+    } catch (err) {
+      console.error("Failed to load app info:", err);
+    }
+  };
+
+  /**
+   * 检查更新
+   * Check for updates
+   */
+  const handleCheckForUpdates = useCallback(async () => {
+    try {
+      setCheckingUpdates(true);
+      setUpdateError(null);
+      const info = await api.checkForUpdates();
+      setUpdateInfo(info);
+      
+      if (info.update_available) {
+        setToast({ 
+          message: t('common.updateAvailable'), 
+          type: "success" 
+        });
+      } else {
+        setToast({ 
+          message: t('common.upToDate'), 
+          type: "success" 
+        });
+      }
+    } catch (err) {
+      console.error("Failed to check for updates:", err);
+      const errorMessage = err instanceof Error ? err.message : t('common.failedToCheckUpdates');
+      setUpdateError(errorMessage);
+      setToast({ 
+        message: errorMessage, 
+        type: "error" 
+      });
+    } finally {
+      setCheckingUpdates(false);
+    }
+  }, [t]);
+
+  // 当切换到关于标签页时自动检查更新
+  // Auto check for updates when switching to about tab
+  useEffect(() => {
+    if (activeTab === "about" && !updateInfo && !checkingUpdates) {
+      handleCheckForUpdates();
+    }
+  }, [activeTab, updateInfo, checkingUpdates, handleCheckForUpdates]);
 
   /**
    * 加载当前 Claude 二进制文件路径
@@ -442,8 +512,8 @@ export const Settings: React.FC<SettingsProps> = ({
               <TabsTrigger value="advanced">{t('common.advanced')}</TabsTrigger>
               <TabsTrigger value="hooks">{t('common.hooks')}</TabsTrigger>
               <TabsTrigger value="commands">{t('common.commands')}</TabsTrigger>
-              {/* <TabsTrigger value="provider">{t('common.provider')}</TabsTrigger> */}
               <TabsTrigger value="storage">{t('settings.storage')}</TabsTrigger>
+              <TabsTrigger value="about">{t('common.about')}</TabsTrigger>
             </TabsList>
             
             {/* General Settings */}
@@ -992,6 +1062,166 @@ export const Settings: React.FC<SettingsProps> = ({
             {/* Storage Tab */}
             <TabsContent value="storage">
               <StorageTab />
+            </TabsContent>
+
+            {/* About Tab */}
+            <TabsContent value="about" className="space-y-6">
+              <Card className="p-6">
+                <div className="space-y-6">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <Info className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold">{t('common.about')}</h3>
+                      <p className="text-sm text-muted-foreground">
+                        {t('common.aboutApplicationDescription')}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Application Version */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-4 w-4 text-green-500" />
+                        <Label className="text-sm font-medium">{t('common.applicationVersion')}</Label>
+                      </div>
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="font-mono text-sm">
+                          {appInfo?.version || t('common.loading')}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <Database className="h-4 w-4 text-blue-500" />
+                        <Label className="text-sm font-medium">{t('common.databaseLocation')}</Label>
+                      </div>
+                      <div className="p-3 bg-muted/50 rounded-lg">
+                        <p className="font-mono text-xs break-all">
+                          {appInfo?.database_path || t('common.loading')}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Update Section */}
+                  <div className="border-t pt-6">
+                    <div className="flex items-center justify-between mb-4">
+                      <div>
+                        <h4 className="text-base font-medium">{t('common.updateCheck')}</h4>
+                        <p className="text-sm text-muted-foreground">
+                          {t('common.updateCheckDescription')}
+                        </p>
+                      </div>
+                      <Button
+                        variant="outline"
+                        onClick={handleCheckForUpdates}
+                        disabled={checkingUpdates}
+                        className="gap-2"
+                      >
+                        {checkingUpdates ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            {t('common.checking')}
+                          </>
+                        ) : (
+                          <>
+                            <Download className="h-4 w-4" />
+                            {t('common.checkForUpdates')}
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    {updateError && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-3 rounded-lg bg-destructive/10 border border-destructive/50 flex items-center gap-2 text-sm text-destructive mb-4"
+                      >
+                        <AlertCircle className="h-4 w-4" />
+                        {updateError}
+                      </motion.div>
+                    )}
+
+                    {updateInfo && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={cn(
+                          "p-4 rounded-lg border",
+                          updateInfo.update_available 
+                            ? "bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800" 
+                            : "bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800"
+                        )}
+                      >
+                        <div className="space-y-3">
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <p className="font-medium">
+                                {updateInfo.update_available 
+                                  ? t('common.updateAvailable')
+                                  : t('common.upToDate')
+                                }
+                              </p>
+                              <div className="text-sm text-muted-foreground mt-1">
+                                <p>{t('common.currentVersion')}: <span className="font-mono">{updateInfo.current_version}</span></p>
+                                <p>{t('common.latestVersion')}: <span className="font-mono">{updateInfo.latest_version}</span></p>
+                              </div>
+                            </div>
+                            {updateInfo.update_available && updateInfo.download_url && (
+                              <Button
+                                variant="default"
+                                size="sm"
+                                asChild
+                                className="gap-2"
+                              >
+                                <a href={updateInfo.download_url} target="_blank" rel="noopener noreferrer">
+                                  <ExternalLink className="h-3 w-3" />
+                                  {t('common.download')}
+                                </a>
+                              </Button>
+                            )}
+                          </div>
+                          
+                          {updateInfo.release_notes && (
+                            <div className="border-t pt-3">
+                              <Label className="text-xs font-medium text-muted-foreground mb-2 block">
+                                {t('common.releaseNotes')}
+                              </Label>
+                              <div className="text-xs text-muted-foreground max-h-32 overflow-y-auto">
+                                <pre className="whitespace-pre-wrap font-sans">
+                                  {updateInfo.release_notes}
+                                </pre>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </motion.div>
+                    )}
+                  </div>
+
+                  {/* Additional Information */}
+                  <div className="border-t pt-6">
+                    <div className="text-center space-y-2">
+                      <p className="text-sm font-medium">Claude Suite</p>
+                      <p className="text-xs text-muted-foreground">
+                        {t('common.applicationDescription')}
+                      </p>
+                      <div className="flex justify-center gap-4 text-xs text-muted-foreground">
+                        <span>Windows</span>
+                        <span>•</span>
+                        <span>Tauri + React</span>
+                        <span>•</span>
+                        <span>Rust + TypeScript</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Card>
             </TabsContent>
           </Tabs>
         </div>

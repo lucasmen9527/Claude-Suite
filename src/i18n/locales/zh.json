@@ -777,7 +777,7 @@
     "newSessionNamePlaceholder": "例如，替代方法",
     "createFork": "创建分叉",
     "slashCommands": "Slash Commands",
-    "manageProjectSlashCommands": "Manage project-specific slash commands for {projectPath}",
+    "manageProjectSlashCommands": "管理 {projectPath} 的 Slash Commands",
     "pleaseSelectProjectDirectory": "请先选择项目目录",
     "sendPromptFailed": "发送提示失败",
     "selectDirectoryFailed": "选择目录失败：{error}",
@@ -914,7 +914,46 @@
     "extensiveReasoning": "广泛推理",
     "maximumComputation": "最大计算",
     "fasterEfficient": "更快，适用于大多数任务",
-    "moreCapableBetter": "更强大，更适合复杂任务"
+    "moreCapableBetter": "更强大，更适合复杂任务",
+    "aboutApplicationDescription": "查看应用程序信息、版本和系统详情",
+    "applicationVersion": "应用程序版本",
+    "databaseLocation": "数据库位置",
+    "updateCheck": "更新检查",
+    "updateCheckDescription": "检查是否有新版本可用",
+    "checkForUpdates": "检查更新",
+    "checking": "检查中...",
+    "updateAvailable": "有新版本可用",
+    "upToDate": "当前版本是最新的",
+    "failedToCheckUpdates": "检查更新失败",
+    "currentVersion": "当前版本",
+    "latestVersion": "最新版本",
+    "download": "下载",
+    "releaseNotes": "发布说明",
+    "applicationDescription": "专业的 Claude CLI 桌面应用和开发工具包",
+    "loading": "加载中..."
+  },
+  "slashCommandPicker": {
+    "title": "斜杠命令",
+    "searchPlaceholder": "搜索：\"{query}\"",
+    "tabDefault": "默认",
+    "tabCustom": "自定义",
+    "noDefaultCommands": "没有默认命令可用",
+    "noDefaultCommandsSearch": "未找到命令",
+    "defaultCommandsDescription": "默认命令是内置系统命令",
+    "noCustomCommands": "没有自定义命令可用",
+    "noCustomCommandsSearch": "未找到命令",
+    "customCommandsDescription": "在 .claude/commands/ 或 ~/.claude/commands/ 中创建命令",
+    "loadingCommands": "加载命令中...",
+    "keyboardShortcuts": "↑↓ 导航 • Enter 选择 • Esc 关闭",
+    "userCommands": "用户命令",
+    "projectCommands": "项目命令",
+    "arguments": "[参数]",
+    "toolsCount": "{count} 个工具",
+    "bashIndicator": "Bash",
+    "filesIndicator": "文件",
+    "scopeDefault": "默认",
+    "scopeUser": "用户",
+    "scopeProject": "项目"
   },
   "relayStations": {
     "title": "中转站管理",
@@ -963,11 +1002,39 @@
     "addStationSuccess": "中转站添加成功",
     "updateStationSuccess": "中转站更新成功",
     "deleteStationSuccess": "中转站删除成功",
+    "exportStationSuccess": "中转站导出成功",
+    "importStationSuccess": "中转站导入成功",
+    "exportStationFailed": "导出中转站失败",
+    "importStationFailed": "导入中转站失败",
     "fetchStationsFailed": "获取中转站列表失败",
     "deleteStationFailed": "删除中转站失败",
     "addStationDialog": {
       "title": "添加中转站",
       "description": "添加一个新的中转站配置"
+    },
+    "importStationDialog": {
+      "title": "导入中转站",
+      "description": "从JSON文件导入中转站配置",
+      "fileInfo": "导入文件信息",
+      "version": "版本",
+      "exportTime": "导出时间",
+      "stationCount": "中转站数量",
+      "stationsToImport": "要导入的中转站",
+      "overwriteExisting": "覆盖同名的现有中转站",
+      "overwriteHint": "如果存在同名中转站，将跳过导入。启用\"覆盖现有中转站\"选项将更新现有配置。",
+      "importing": "导入中...",
+      "importButton": "导入 {count} 个中转站",
+      "invalidFileFormat": "无效的导入文件格式",
+      "readFileFailed": "读取导入文件失败，请检查文件格式"
+    },
+    "exportStation": {
+      "button": "导出中转站",
+      "exporting": "导出中...",
+      "selectAll": "全部导出",
+      "selectSpecific": "选择导出",
+      "filename": "relay_stations_{timestamp}.json",
+      "successMessage": "已成功导出 {count} 个中转站到 {path}",
+      "failedMessage": "导出中转站失败，请稍后重试"
     },
     "stationDetailsDialog": {
       "title": "中转站详情",
@@ -987,6 +1054,120 @@
       "bearerToken": "Bearer Token",
       "apiKey": "API Key",
       "custom": "自定义"
+    }
+  },
+  "defaultSlashCommands": {
+    "addDir": {
+      "content": "添加新的工作目录",
+      "description": "添加新的工作目录"
+    },
+    "agents": {
+      "content": "管理智能体配置",
+      "description": "管理智能体配置"
+    },
+    "clear": {
+      "content": "清除对话历史并释放上下文",
+      "description": "清除对话历史并释放上下文（重置）"
+    },
+    "compact": {
+      "content": "清除对话历史但在上下文中保留摘要",
+      "description": "清除对话历史但在上下文中保留摘要"
+    },
+    "config": {
+      "content": "打开配置面板",
+      "description": "打开配置面板（主题）"
+    },
+    "cost": {
+      "content": "显示当前会话的总费用和持续时间",
+      "description": "显示当前会话的总费用和持续时间"
+    },
+    "doctor": {
+      "content": "诊断并验证您的 Claude Code 安装和设置",
+      "description": "诊断并验证您的 Claude Code 安装和设置"
+    },
+    "exit": {
+      "content": "退出 REPL",
+      "description": "退出 REPL（退出）"
+    },
+    "export": {
+      "content": "将当前对话导出到文件或剪贴板",
+      "description": "将当前对话导出到文件或剪贴板"
+    },
+    "help": {
+      "content": "显示帮助和可用命令",
+      "description": "显示帮助和可用命令"
+    },
+    "hooks": {
+      "content": "管理工具事件的钩子配置",
+      "description": "管理工具事件的钩子配置"
+    },
+    "ide": {
+      "content": "管理 IDE 集成并显示状态",
+      "description": "管理 IDE 集成并显示状态"
+    },
+    "init": {
+      "content": "使用代码库文档初始化新的 CLAUDE.md 文件",
+      "description": "使用代码库文档初始化新的 CLAUDE.md 文件"
+    },
+    "installGithubApp": {
+      "content": "为仓库设置 Claude GitHub Actions",
+      "description": "为仓库设置 Claude GitHub Actions"
+    },
+    "login": {
+      "content": "使用您的 Anthropic 账户登录",
+      "description": "使用您的 Anthropic 账户登录"
+    },
+    "logout": {
+      "content": "从您的 Anthropic 账户登出",
+      "description": "从您的 Anthropic 账户登出"
+    },
+    "mcp": {
+      "content": "管理 MCP 服务器",
+      "description": "管理 MCP 服务器"
+    },
+    "memory": {
+      "content": "编辑 Claude 记忆文件",
+      "description": "编辑 Claude 记忆文件"
+    },
+    "migrateInstaller": {
+      "content": "从全局 npm 安装迁移到本地安装",
+      "description": "从全局 npm 安装迁移到本地安装"
+    },
+    "model": {
+      "content": "设置 Claude Code 的 AI 模型",
+      "description": "设置 Claude Code 的 AI 模型"
+    },
+    "permissions": {
+      "content": "管理允许和拒绝工具权限规则",
+      "description": "管理允许和拒绝工具权限规则（允许的工具）"
+    },
+    "prComments": {
+      "content": "从 GitHub 拉取请求获取评论",
+      "description": "从 GitHub 拉取请求获取评论"
+    },
+    "releaseNotes": {
+      "content": "查看版本说明",
+      "description": "查看版本说明"
+    },
+    "resume": {
+      "content": "恢复对话",
+      "description": "恢复对话"
+    },
+    "review": {
+      "content": "审查拉取请求",
+      "description": "审查拉取请求"
+    },
+    "status": {
+      "content": "显示 Claude Code 状态，包括版本、模型、账户、API 连接和工具状态",
+      "description": "显示 Claude Code 状态，包括版本、模型、账户、API 连接和工具状态"
+    },
+    "upgrade": {
+      "content": "升级到 Max 以获得更高的速率限制和更多 Opus",
+      "description": "升级到 Max 以获得更高的速率限制和更多 Opus"
+    },
+    "vim": {
+      "content": "在 Vim 和普通编辑模式之间切换",
+      "description": "在 Vim 和普通编辑模式之间切换"
     }
   }
 }

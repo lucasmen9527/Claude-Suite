@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Claude Suite",
-  "version": "1.0.0",
-  "identifier": "claude.workbench.app",
+  "version": "1.1.0",
+  "identifier": "claude.suite.app",
   "build": {
     "beforeDevCommand": "bun run dev",
     "devUrl": "http://localhost:1420",
@@ -29,22 +29,7 @@
   },
   "plugins": {
     "fs": {
-      "scope": [
-        "$HOME/**",
-        "$TEMP/**",
-        "$TMP/**"
-      ],
-      "allow": [
-        "readFile",
-        "writeFile",
-        "readDir",
-        "copyFile",
-        "createDir",
-        "removeDir",
-        "removeFile",
-        "renameFile",
-        "exists"
-      ]
+      "requireLiteralLeadingDot": false
     },
     "shell": {
       "open": true

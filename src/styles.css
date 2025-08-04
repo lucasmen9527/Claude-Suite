@@ -741,6 +741,7 @@ code::-webkit-scrollbar-thumb:hover,
 .z-layer-floating { z-index: 40; }
 .z-layer-input { z-index: 50; }
 .z-layer-tooltip { z-index: 60; }
+.z-layer-status-modal { z-index: 70; }
 
 /* Additional contrast improvements for accessibility */
 .contrast-enhanced {

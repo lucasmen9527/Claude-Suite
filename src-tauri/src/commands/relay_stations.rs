@@ -9,6 +9,7 @@ use rusqlite::{params, Connection};
 use std::sync::Mutex;
 
 use super::relay_adapters::{NewApiAdapter, YourApiAdapter, CustomAdapter};
+use crate::t;
 
 /// Relay station adapter type for different station implementations
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -177,6 +178,73 @@ pub struct UpdateTokenRequest {
     pub group: Option<String>,
     pub allow_ips: Option<String>,
     pub enabled: Option<bool>,
+}
+
+/// API endpoint information from api_status.har
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiEndpoint {
+    pub id: i32,
+    pub route: String,
+    pub url: String,
+    pub description: String,
+    pub color: String,
+}
+
+/// Relay station configuration for detailed setup
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RelayStationConfig {
+    pub station_id: String,
+    pub station_name: String,
+    pub api_endpoint: String,
+    pub custom_endpoint: Option<String>,
+    pub path: Option<String>,
+    pub model: Option<String>,
+    pub saved_settings: Option<HashMap<String, serde_json::Value>>,
+    pub created_at: i64,
+    pub updated_at: i64,
+}
+
+/// Request for saving relay station configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SaveStationConfigRequest {
+    pub station_id: String,
+    pub api_endpoint: String,
+    pub custom_endpoint: Option<String>,
+    pub path: Option<String>,
+    pub model: Option<String>,
+}
+
+/// Configuration usage status for display
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ConfigUsageStatus {
+    pub station_id: String,
+    pub station_name: String,
+    pub base_url: String,
+    pub token: String,
+    pub is_active: bool,
+    pub applied_at: Option<i64>,
+}
+
+/// Export data structure for relay stations
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RelayStationExport {
+    pub version: u32,
+    pub exported_at: i64,
+    pub stations: Vec<RelayStationExportItem>,
+}
+
+/// Individual station data for export
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RelayStationExportItem {
+    pub name: String,
+    pub description: Option<String>,
+    pub api_url: String,
+    pub adapter: RelayStationAdapter,
+    pub auth_method: AuthMethod,
+    pub system_token: String,
+    pub user_id: Option<String>,
+    pub adapter_config: Option<HashMap<String, serde_json::Value>>,
+    pub enabled: bool,
 }
 
 /// Adapter trait for different relay station implementations
@@ -595,6 +663,323 @@ impl RelayStationManager {
     //     conn.execute("DELETE FROM relay_station_tokens WHERE id = ?1", [token_id])?;
     //     Ok(())
     // }
+
+    /// Save relay station configuration
+    pub fn save_station_config(&self, config: &RelayStationConfig) -> Result<()> {
+        let conn = self.db.lock().unwrap();
+        
+        // Create table if it doesn't exist
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS station_configs (
+                station_id TEXT PRIMARY KEY,
+                station_name TEXT NOT NULL,
+                api_endpoint TEXT NOT NULL,
+                custom_endpoint TEXT,
+                path TEXT,
+                model TEXT,
+                saved_settings TEXT,
+                created_at INTEGER NOT NULL,
+                updated_at INTEGER NOT NULL
+            )",
+            [],
+        )?;
+
+        // Insert or replace configuration
+        conn.execute(
+            "INSERT OR REPLACE INTO station_configs 
+             (station_id, station_name, api_endpoint, custom_endpoint, path, model, saved_settings, created_at, updated_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)",
+            params![
+                config.station_id,
+                config.station_name,
+                config.api_endpoint,
+                config.custom_endpoint,
+                config.path,
+                config.model,
+                config.saved_settings.as_ref().map(|s| serde_json::to_string(s).unwrap_or_default()),
+                config.created_at,
+                config.updated_at
+            ],
+        )?;
+
+        Ok(())
+    }
+
+    /// Get saved relay station configuration
+    pub fn get_station_config(&self, station_id: &str) -> Result<Option<RelayStationConfig>> {
+        let conn = self.db.lock().unwrap();
+        
+        let mut stmt = conn.prepare("SELECT * FROM station_configs WHERE station_id = ?1")?;
+        
+        let mut config_iter = stmt.query_map([station_id], |row| {
+            let saved_settings_str: Option<String> = row.get("saved_settings")?;
+            let saved_settings = if let Some(settings_str) = saved_settings_str {
+                serde_json::from_str(&settings_str).ok()
+            } else {
+                None
+            };
+
+            Ok(RelayStationConfig {
+                station_id: row.get("station_id")?,
+                station_name: row.get("station_name")?,
+                api_endpoint: row.get("api_endpoint")?,
+                custom_endpoint: row.get("custom_endpoint")?,
+                path: row.get("path")?,
+                model: row.get("model")?,
+                saved_settings,
+                created_at: row.get("created_at")?,
+                updated_at: row.get("updated_at")?,
+            })
+        })?;
+
+        match config_iter.next() {
+            Some(config) => Ok(Some(config?)),
+            None => Ok(None),
+        }
+    }
+
+    /// Record configuration usage
+    pub fn record_config_usage(&self, station_id: &str, base_url: &str, token: &str) -> Result<()> {
+        let conn = self.db.lock().unwrap();
+        
+        // Create table if it doesn't exist
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS config_usage (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                station_id TEXT NOT NULL,
+                base_url TEXT NOT NULL,
+                token TEXT NOT NULL,
+                applied_at INTEGER NOT NULL,
+                UNIQUE(station_id)
+            )",
+            [],
+        )?;
+
+        let now = Utc::now().timestamp();
+        
+        // Insert or replace usage record
+        conn.execute(
+            "INSERT OR REPLACE INTO config_usage (station_id, base_url, token, applied_at)
+             VALUES (?1, ?2, ?3, ?4)",
+            params![station_id, base_url, token, now],
+        )?;
+
+        Ok(())
+    }
+
+    /// Export relay stations to JSON format
+    pub fn export_stations(&self, station_ids: Option<Vec<String>>) -> Result<RelayStationExport> {
+        let conn = self.db.lock().unwrap();
+        
+        let stations = if let Some(ids) = station_ids {
+            // Export specific stations
+            let mut stations = Vec::new();
+            for id in ids {
+                let mut stmt = conn.prepare("SELECT * FROM relay_stations WHERE id = ?1")?;
+                let station_iter = stmt.query_map([&id], |row| {
+                    let adapter_config_str: Option<String> = row.get("adapter_config")?;
+                    let adapter_config = if let Some(config_str) = adapter_config_str {
+                        serde_json::from_str(&config_str).ok()
+                    } else {
+                        None
+                    };
+
+                    Ok(RelayStationExportItem {
+                        name: row.get("name")?,
+                        description: row.get("description")?,
+                        api_url: row.get("api_url")?,
+                        adapter: match row.get::<_, String>("adapter")?.as_str() {
+                            "newapi" => RelayStationAdapter::Newapi,
+                            "oneapi" => RelayStationAdapter::Oneapi,
+                            "yourapi" => RelayStationAdapter::Yourapi,
+                            "custom" => RelayStationAdapter::Custom,
+                            _ => RelayStationAdapter::Newapi,
+                        },
+                        auth_method: match row.get::<_, String>("auth_method")?.as_str() {
+                            "bearer_token" => AuthMethod::BearerToken,
+                            "api_key" => AuthMethod::ApiKey,
+                            "custom" => AuthMethod::Custom,
+                            _ => AuthMethod::BearerToken,
+                        },
+                        system_token: row.get("system_token")?,
+                        user_id: row.get("user_id")?,
+                        adapter_config,
+                        enabled: row.get::<_, i32>("enabled")? != 0,
+                    })
+                })?;
+                
+                for station in station_iter {
+                    stations.push(station?);
+                }
+            }
+            stations
+        } else {
+            // Export all stations
+            let mut stmt = conn.prepare("SELECT * FROM relay_stations ORDER BY created_at DESC")?;
+            let station_iter = stmt.query_map([], |row| {
+                let adapter_config_str: Option<String> = row.get("adapter_config")?;
+                let adapter_config = if let Some(config_str) = adapter_config_str {
+                    serde_json::from_str(&config_str).ok()
+                } else {
+                    None
+                };
+
+                Ok(RelayStationExportItem {
+                    name: row.get("name")?,
+                    description: row.get("description")?,
+                    api_url: row.get("api_url")?,
+                    adapter: match row.get::<_, String>("adapter")?.as_str() {
+                        "newapi" => RelayStationAdapter::Newapi,
+                        "oneapi" => RelayStationAdapter::Oneapi,
+                        "yourapi" => RelayStationAdapter::Yourapi,
+                        "custom" => RelayStationAdapter::Custom,
+                        _ => RelayStationAdapter::Newapi,
+                    },
+                    auth_method: match row.get::<_, String>("auth_method")?.as_str() {
+                        "bearer_token" => AuthMethod::BearerToken,
+                        "api_key" => AuthMethod::ApiKey,
+                        "custom" => AuthMethod::Custom,
+                        _ => AuthMethod::BearerToken,
+                    },
+                    system_token: row.get("system_token")?,
+                    user_id: row.get("user_id")?,
+                    adapter_config,
+                    enabled: row.get::<_, i32>("enabled")? != 0,
+                })
+            })?;
+
+            station_iter.collect::<Result<Vec<_>, _>>().map_err(|e| anyhow!("Database error: {}", e))?
+        };
+
+        Ok(RelayStationExport {
+            version: 1,
+            exported_at: Utc::now().timestamp(),
+            stations,
+        })
+    }
+
+    /// Import relay stations from JSON format
+    pub fn import_stations(&self, export_data: &RelayStationExport, overwrite_existing: bool) -> Result<Vec<String>> {
+        let conn = self.db.lock().unwrap();
+        let mut imported_stations = Vec::new();
+        
+        for station_data in &export_data.stations {
+            // Check if station with same name already exists
+            let mut stmt = conn.prepare("SELECT id FROM relay_stations WHERE name = ?1")?;
+            let existing_station: Option<String> = match stmt.query_row([&station_data.name], |row| {
+                row.get::<_, String>("id")
+            }) {
+                Ok(id) => Some(id),
+                Err(rusqlite::Error::QueryReturnedNoRows) => None,
+                Err(e) => return Err(e.into()),
+            };
+
+            let station_id = if let Some(existing_id) = &existing_station {
+                if !overwrite_existing {
+                    // Skip existing station if not overwriting
+                    continue;
+                }
+                existing_id.clone()
+            } else {
+                Uuid::new_v4().to_string()
+            };
+
+            let adapter_config_str = if let Some(config) = &station_data.adapter_config {
+                Some(serde_json::to_string(config)?)
+            } else {
+                None
+            };
+
+            let now = Utc::now().timestamp();
+
+            if existing_station.is_some() && overwrite_existing {
+                // Update existing station
+                conn.execute(
+                    "UPDATE relay_stations SET description = ?1, api_url = ?2, adapter = ?3, auth_method = ?4, 
+                     system_token = ?5, user_id = ?6, adapter_config = ?7, enabled = ?8, updated_at = ?9 WHERE id = ?10",
+                    params![
+                        station_data.description,
+                        station_data.api_url,
+                        match station_data.adapter {
+                            RelayStationAdapter::Newapi => "newapi",
+                            RelayStationAdapter::Oneapi => "oneapi",
+                            RelayStationAdapter::Yourapi => "yourapi",
+                            RelayStationAdapter::Custom => "custom",
+                        },
+                        match station_data.auth_method {
+                            AuthMethod::BearerToken => "bearer_token",
+                            AuthMethod::ApiKey => "api_key",
+                            AuthMethod::Custom => "custom",
+                        },
+                        station_data.system_token,
+                        station_data.user_id,
+                        adapter_config_str,
+                        if station_data.enabled { 1 } else { 0 },
+                        now,
+                        station_id,
+                    ],
+                )?;
+            } else {
+                // Insert new station
+                conn.execute(
+                    "INSERT INTO relay_stations (id, name, description, api_url, adapter, auth_method, system_token, user_id, adapter_config, enabled, created_at, updated_at)
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)",
+                    params![
+                        station_id,
+                        station_data.name,
+                        station_data.description,
+                        station_data.api_url,
+                        match station_data.adapter {
+                            RelayStationAdapter::Newapi => "newapi",
+                            RelayStationAdapter::Oneapi => "oneapi",
+                            RelayStationAdapter::Yourapi => "yourapi",
+                            RelayStationAdapter::Custom => "custom",
+                        },
+                        match station_data.auth_method {
+                            AuthMethod::BearerToken => "bearer_token",
+                            AuthMethod::ApiKey => "api_key",
+                            AuthMethod::Custom => "custom",
+                        },
+                        station_data.system_token,
+                        station_data.user_id,
+                        adapter_config_str,
+                        if station_data.enabled { 1 } else { 0 },
+                        now,
+                        now,
+                    ],
+                )?;
+            }
+
+            imported_stations.push(station_data.name.clone());
+        }
+
+        Ok(imported_stations)
+    }
+
+    /// Get configuration usage status for display
+    pub fn get_config_usage_status(&self) -> Result<Vec<ConfigUsageStatus>> {
+        let conn = self.db.lock().unwrap();
+        
+        let mut stmt = conn.prepare(
+            "SELECT cu.station_id, rs.name as station_name, cu.base_url, cu.token, cu.applied_at
+             FROM config_usage cu
+             LEFT JOIN relay_stations rs ON cu.station_id = rs.id
+             ORDER BY cu.applied_at DESC"
+        )?;
+        
+        let status_iter = stmt.query_map([], |row| {
+            Ok(ConfigUsageStatus {
+                station_id: row.get("station_id")?,
+                station_name: row.get::<_, Option<String>>("station_name")?.unwrap_or_else(|| "Unknown".to_string()),
+                base_url: row.get("base_url")?,
+                token: row.get("token")?,
+                is_active: true, // Will be determined by comparing with current config
+                applied_at: Some(row.get("applied_at")?),
+            })
+        })?;
+
+        status_iter.collect::<Result<Vec<_>, _>>().map_err(|e| anyhow!("Database error: {}", e))
+    }
 }
 
 // Tauri command handlers
@@ -602,10 +987,10 @@ impl RelayStationManager {
 #[tauri::command]
 pub async fn list_relay_stations(app: AppHandle) -> Result<Vec<RelayStation>, String> {
     let state: State<Mutex<Option<RelayStationManager>>> = app.state();
-    let manager_lock = state.lock().map_err(|e| format!("Lock error: {}", e))?;
+    let manager_lock = state.lock().map_err(|e| t!("relay.lock_error", "error" => &e.to_string()))?;
     
     if let Some(manager) = manager_lock.as_ref() {
-        manager.list_stations().map_err(|e| format!("Failed to list stations: {}", e))
+        manager.list_stations().map_err(|e| t!("relay.failed_to_list_stations", "error" => &e.to_string()))
     } else {
         Ok(Vec::new()) // Return empty list if manager not initialized
     }
@@ -614,10 +999,10 @@ pub async fn list_relay_stations(app: AppHandle) -> Result<Vec<RelayStation>, St
 #[tauri::command]
 pub async fn get_relay_station(station_id: String, app: AppHandle) -> Result<Option<RelayStation>, String> {
     let state: State<Mutex<Option<RelayStationManager>>> = app.state();
-    let manager_lock = state.lock().map_err(|e| format!("Lock error: {}", e))?;
+    let manager_lock = state.lock().map_err(|e| t!("relay.lock_error", "error" => &e.to_string()))?;
     
     if let Some(manager) = manager_lock.as_ref() {
-        manager.get_station(&station_id).map_err(|e| format!("Failed to get station: {}", e))
+        manager.get_station(&station_id).map_err(|e| t!("relay.failed_to_get_station", "error" => &e.to_string()))
     } else {
         Ok(None)
     }
@@ -629,7 +1014,7 @@ pub async fn add_relay_station(
     app: AppHandle,
 ) -> Result<String, String> {
     let state: State<Mutex<Option<RelayStationManager>>> = app.state();
-    let manager_lock = state.lock().map_err(|e| format!("Lock error: {}", e))?;
+    let manager_lock = state.lock().map_err(|e| t!("relay.lock_error", "error" => &e.to_string()))?;
     
     if let Some(manager) = manager_lock.as_ref() {
         let station = RelayStation {
@@ -647,10 +1032,10 @@ pub async fn add_relay_station(
             updated_at: Utc::now().timestamp(),
         };
         
-        manager.add_station(&station).map_err(|e| format!("Failed to add station: {}", e))?;
-        Ok("Station added successfully".to_string())
+        manager.add_station(&station).map_err(|e| t!("relay.failed_to_add_station", "error" => &e.to_string()))?;
+        Ok(t!("relay.station_add_success"))
     } else {
-        Err("Relay station manager not initialized".to_string())
+        Err(t!("relay.manager_not_initialized"))
     }
 }
 
@@ -661,26 +1046,26 @@ pub async fn update_relay_station(
     app: AppHandle,
 ) -> Result<String, String> {
     let state: State<Mutex<Option<RelayStationManager>>> = app.state();
-    let manager_lock = state.lock().map_err(|e| format!("Lock error: {}", e))?;
+    let manager_lock = state.lock().map_err(|e| t!("relay.lock_error", "error" => &e.to_string()))?;
     
     if let Some(manager) = manager_lock.as_ref() {
-        manager.update_station(&station_id, &updates).map_err(|e| format!("Failed to update station: {}", e))?;
-        Ok("Station updated successfully".to_string())
+        manager.update_station(&station_id, &updates).map_err(|e| t!("relay.failed_to_update_station", "error" => &e.to_string()))?;
+        Ok(t!("relay.station_update_success"))
     } else {
-        Err("Relay station manager not initialized".to_string())
+        Err(t!("relay.manager_not_initialized"))
     }
 }
 
 #[tauri::command]
 pub async fn delete_relay_station(station_id: String, app: AppHandle) -> Result<String, String> {
     let state: State<Mutex<Option<RelayStationManager>>> = app.state();
-    let manager_lock = state.lock().map_err(|e| format!("Lock error: {}", e))?;
+    let manager_lock = state.lock().map_err(|e| t!("relay.lock_error", "error" => &e.to_string()))?;
     
     if let Some(manager) = manager_lock.as_ref() {
-        manager.delete_station(&station_id).map_err(|e| format!("Failed to delete station: {}", e))?;
-        Ok("Station deleted successfully".to_string())
+        manager.delete_station(&station_id).map_err(|e| t!("relay.failed_to_delete_station", "error" => &e.to_string()))?;
+        Ok(t!("relay.station_delete_success"))
     } else {
-        Err("Relay station manager not initialized".to_string())
+        Err(t!("relay.manager_not_initialized"))
     }
 }
 
@@ -690,19 +1075,19 @@ pub async fn get_station_info(station_id: String, app: AppHandle) -> Result<Stat
     
     // Get the station first, releasing the lock before the async call
     let station = {
-        let manager_lock = state.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let manager_lock = state.lock().map_err(|e| t!("relay.lock_error", "error" => &e.to_string()))?;
         if let Some(manager) = manager_lock.as_ref() {
-            manager.get_station(&station_id).map_err(|e| format!("Failed to get station: {}", e))?
+            manager.get_station(&station_id).map_err(|e| t!("relay.failed_to_get_station", "error" => &e.to_string()))?
         } else {
-            return Err("Relay station manager not initialized".to_string());
+            return Err(t!("relay.manager_not_initialized"));
         }
     };
     
     if let Some(station) = station {
         let adapter = create_adapter(&station.adapter);
-        adapter.get_station_info(&station).await.map_err(|e| format!("Failed to get station info: {}", e))
+        adapter.get_station_info(&station).await.map_err(|e| t!("relay.failed_to_get_station_info", "error" => &e.to_string()))
     } else {
-        Err("Station not found".to_string())
+        Err(t!("relay.station_not_found"))
     }
 }
 
@@ -712,9 +1097,9 @@ pub async fn list_station_tokens(station_id: String, page: Option<usize>, size: 
     
     // Get the station first, releasing the lock before the async call
     let station = {
-        let manager_lock = state.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let manager_lock = state.lock().map_err(|e| t!("relay.lock_error", "error" => &e.to_string()))?;
         if let Some(manager) = manager_lock.as_ref() {
-            manager.get_station(&station_id).map_err(|e| format!("Failed to get station: {}", e))?
+            manager.get_station(&station_id).map_err(|e| t!("relay.failed_to_get_station", "error" => &e.to_string()))?
         } else {
             return Ok(TokenPaginationResponse {
                 items: Vec::new(),
@@ -727,7 +1112,7 @@ pub async fn list_station_tokens(station_id: String, page: Option<usize>, size: 
     
     if let Some(station) = station {
         let adapter = create_adapter(&station.adapter);
-        adapter.list_tokens(&station, page, size).await.map_err(|e| format!("Failed to list tokens: {}", e))
+        adapter.list_tokens(&station, page, size).await.map_err(|e| t!("relay.failed_to_list_tokens", "error" => &e.to_string()))
     } else {
         Ok(TokenPaginationResponse {
             items: Vec::new(),
@@ -748,19 +1133,19 @@ pub async fn add_station_token(
     
     // Get the station first, releasing the lock before the async call
     let station = {
-        let manager_lock = state.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let manager_lock = state.lock().map_err(|e| t!("relay.lock_error", "error" => &e.to_string()))?;
         if let Some(manager) = manager_lock.as_ref() {
-            manager.get_station(&station_id).map_err(|e| format!("Failed to get station: {}", e))?
+            manager.get_station(&station_id).map_err(|e| t!("relay.failed_to_get_station", "error" => &e.to_string()))?
         } else {
-            return Err("Relay station manager not initialized".to_string());
+            return Err(t!("relay.manager_not_initialized"));
         }
     };
     
     if let Some(station) = station {
         let adapter = create_adapter(&station.adapter);
-        adapter.create_token(&station, &token_data).await.map_err(|e| format!("Failed to create token: {}", e))
+        adapter.create_token(&station, &token_data).await.map_err(|e| t!("relay.failed_to_create_token", "error" => &e.to_string()))
     } else {
-        Err("Station not found".to_string())
+        Err(t!("relay.station_not_found"))
     }
 }
 
@@ -775,19 +1160,19 @@ pub async fn update_station_token(
     
     // Get the station first, releasing the lock before the async call
     let station = {
-        let manager_lock = state.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let manager_lock = state.lock().map_err(|e| t!("relay.lock_error", "error" => &e.to_string()))?;
         if let Some(manager) = manager_lock.as_ref() {
-            manager.get_station(&station_id).map_err(|e| format!("Failed to get station: {}", e))?
+            manager.get_station(&station_id).map_err(|e| t!("relay.failed_to_get_station", "error" => &e.to_string()))?
         } else {
-            return Err("Relay station manager not initialized".to_string());
+            return Err(t!("relay.manager_not_initialized"));
         }
     };
     
     if let Some(station) = station {
         let adapter = create_adapter(&station.adapter);
-        adapter.update_token(&station, &token_id, &token_data).await.map_err(|e| format!("Failed to update token: {}", e))
+        adapter.update_token(&station, &token_id, &token_data).await.map_err(|e| t!("relay.failed_to_update_token", "error" => &e.to_string()))
     } else {
-        Err("Station not found".to_string())
+        Err(t!("relay.station_not_found"))
     }
 }
 
@@ -801,20 +1186,20 @@ pub async fn delete_station_token(
     
     // Get the station first, releasing the lock before the async call
     let station = {
-        let manager_lock = state.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let manager_lock = state.lock().map_err(|e| t!("relay.lock_error", "error" => &e.to_string()))?;
         if let Some(manager) = manager_lock.as_ref() {
-            manager.get_station(&station_id).map_err(|e| format!("Failed to get station: {}", e))?
+            manager.get_station(&station_id).map_err(|e| t!("relay.failed_to_get_station", "error" => &e.to_string()))?
         } else {
-            return Err("Relay station manager not initialized".to_string());
+            return Err(t!("relay.manager_not_initialized"));
         }
     };
     
     if let Some(station) = station {
         let adapter = create_adapter(&station.adapter);
-        adapter.delete_token(&station, &token_id).await.map_err(|e| format!("Failed to delete token: {}", e))?;
-        Ok("Token deleted successfully".to_string())
+        adapter.delete_token(&station, &token_id).await.map_err(|e| t!("relay.failed_to_delete_token", "error" => &e.to_string()))?;
+        Ok(t!("relay.token_delete_success"))
     } else {
-        Err("Station not found".to_string())
+        Err(t!("relay.station_not_found"))
     }
 }
 
@@ -828,20 +1213,20 @@ pub async fn get_token_user_info(
     
     // Get station data first, releasing the lock before async call
     let station = {
-        let manager_lock = state.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let manager_lock = state.lock().map_err(|e| t!("relay.lock_error", "error" => &e.to_string()))?;
         if let Some(manager) = manager_lock.as_ref() {
-            manager.get_station(&station_id).map_err(|e| format!("Failed to get station: {}", e))?
+            manager.get_station(&station_id).map_err(|e| t!("relay.failed_to_get_station", "error" => &e.to_string()))?
         } else {
-            return Err("Relay station manager not initialized".to_string());
+            return Err(t!("relay.manager_not_initialized"));
         }
     };
     
     if let Some(station) = station {
         let adapter = create_adapter(&station.adapter);
         // Use the provided user_id directly (from station configuration)
-        adapter.get_user_info(&station, &user_id).await.map_err(|e| format!("Failed to get user info: {}", e))
+        adapter.get_user_info(&station, &user_id).await.map_err(|e| t!("relay.failed_to_get_user_info", "error" => &e.to_string()))
     } else {
-        Err("Station not found".to_string())
+        Err(t!("relay.station_not_found"))
     }
 }
 
@@ -857,19 +1242,19 @@ pub async fn get_station_logs(
     
     // Get the station first, releasing the lock before the async call
     let station = {
-        let manager_lock = state.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let manager_lock = state.lock().map_err(|e| t!("relay.lock_error", "error" => &e.to_string()))?;
         if let Some(manager) = manager_lock.as_ref() {
-            manager.get_station(&station_id).map_err(|e| format!("Failed to get station: {}", e))?
+            manager.get_station(&station_id).map_err(|e| t!("relay.failed_to_get_station", "error" => &e.to_string()))?
         } else {
-            return Err("Relay station manager not initialized".to_string());
+            return Err(t!("relay.manager_not_initialized"));
         }
     };
     
     if let Some(station) = station {
         let adapter = create_adapter(&station.adapter);
-        adapter.get_logs(&station, page, page_size, filters).await.map_err(|e| format!("Failed to get logs: {}", e))
+        adapter.get_logs(&station, page, page_size, filters).await.map_err(|e| t!("relay.failed_to_get_logs", "error" => &e.to_string()))
     } else {
-        Err("Station not found".to_string())
+        Err(t!("relay.station_not_found"))
     }
 }
 
@@ -879,19 +1264,19 @@ pub async fn test_station_connection(station_id: String, app: AppHandle) -> Resu
     
     // Get the station first, releasing the lock before the async call
     let station = {
-        let manager_lock = state.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let manager_lock = state.lock().map_err(|e| t!("relay.lock_error", "error" => &e.to_string()))?;
         if let Some(manager) = manager_lock.as_ref() {
-            manager.get_station(&station_id).map_err(|e| format!("Failed to get station: {}", e))?
+            manager.get_station(&station_id).map_err(|e| t!("relay.failed_to_get_station", "error" => &e.to_string()))?
         } else {
-            return Err("Relay station manager not initialized".to_string());
+            return Err(t!("relay.manager_not_initialized"));
         }
     };
     
     if let Some(station) = station {
         let adapter = create_adapter(&station.adapter);
-        adapter.test_connection(&station).await.map_err(|e| format!("Failed to test connection: {}", e))
+        adapter.test_connection(&station).await.map_err(|e| t!("relay.failed_to_test_connection", "error" => &e.to_string()))
     } else {
-        Err("Station not found".to_string())
+        Err(t!("relay.station_not_found"))
     }
 }
 
@@ -901,19 +1286,19 @@ pub async fn api_user_self_groups(station_id: String, app: AppHandle) -> Result<
     
     // Get the station first, releasing the lock before the async call
     let station = {
-        let manager_lock = state.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let manager_lock = state.lock().map_err(|e| t!("relay.lock_error", "error" => &e.to_string()))?;
         if let Some(manager) = manager_lock.as_ref() {
-            manager.get_station(&station_id).map_err(|e| format!("Failed to get station: {}", e))?
+            manager.get_station(&station_id).map_err(|e| t!("relay.failed_to_get_station", "error" => &e.to_string()))?
         } else {
-            return Err("Relay station manager not initialized".to_string());
+            return Err(t!("relay.manager_not_initialized"));
         }
     };
     
     if let Some(station) = station {
         let adapter = create_adapter(&station.adapter);
-        adapter.get_user_groups(&station).await.map_err(|e| format!("Failed to get user groups: {}", e))
+        adapter.get_user_groups(&station).await.map_err(|e| t!("relay.failed_to_get_user_groups", "error" => &e.to_string()))
     } else {
-        Err("Station not found".to_string())
+        Err(t!("relay.station_not_found"))
     }
 }
 
@@ -928,18 +1313,203 @@ pub async fn toggle_station_token(
     
     // Get the station first, releasing the lock before the async call
     let station = {
-        let manager_lock = state.lock().map_err(|e| format!("Lock error: {}", e))?;
+        let manager_lock = state.lock().map_err(|e| t!("relay.lock_error", "error" => &e.to_string()))?;
         if let Some(manager) = manager_lock.as_ref() {
-            manager.get_station(&station_id).map_err(|e| format!("Failed to get station: {}", e))?
+            manager.get_station(&station_id).map_err(|e| t!("relay.failed_to_get_station", "error" => &e.to_string()))?
         } else {
-            return Err("Relay station manager not initialized".to_string());
+            return Err(t!("relay.manager_not_initialized"));
         }
     };
     
     if let Some(station) = station {
         let adapter = create_adapter(&station.adapter);
-        adapter.toggle_token(&station, &token_id, enabled).await.map_err(|e| format!("Failed to toggle token: {}", e))
+        adapter.toggle_token(&station, &token_id, enabled).await.map_err(|e| t!("relay.failed_to_toggle_token", "error" => &e.to_string()))
     } else {
-        Err("Station not found".to_string())
+        Err(t!("relay.station_not_found"))
+    }
+}
+
+/// Load API endpoints from api_status.har or station API
+#[tauri::command]
+pub async fn load_station_api_endpoints(
+    station_id: String,
+    app: AppHandle,
+) -> Result<Vec<ApiEndpoint>, String> {
+    let state: State<Mutex<Option<RelayStationManager>>> = app.state();
+    
+    // Get the station first
+    let station = {
+        let manager_lock = state.lock().map_err(|e| t!("relay.lock_error", "error" => &e.to_string()))?;
+        if let Some(manager) = manager_lock.as_ref() {
+            manager.get_station(&station_id).map_err(|e| t!("relay.failed_to_get_station", "error" => &e.to_string()))?
+        } else {
+            return Err(t!("relay.manager_not_initialized"));
+        }
+    };
+    
+    if let Some(station) = station {
+        // Try to get endpoints from station API status
+        let adapter = create_adapter(&station.adapter);
+        match adapter.get_station_info(&station).await {
+            Ok(info) => {
+                // Extract API endpoints from metadata if available
+                if let Some(metadata) = info.metadata {
+                    if let Some(api_info) = metadata.get("api_info") {
+                        if let Ok(endpoints) = serde_json::from_value::<Vec<ApiEndpoint>>(api_info.clone()) {
+                            return Ok(endpoints);
+                        }
+                    }
+                }
+                
+                // Fallback: create default endpoint from station URL
+                Ok(vec![ApiEndpoint {
+                    id: 0,
+                    route: t!("relay.default_endpoint"),
+                    url: station.api_url.clone(),
+                    description: t!("relay.current_configured_endpoint"),
+                    color: "blue".to_string(),
+                }])
+            }
+            Err(_) => {
+                // Fallback: create default endpoint
+                Ok(vec![ApiEndpoint {
+                    id: 0,
+                    route: t!("relay.default_endpoint"),
+                    url: station.api_url.clone(),
+                    description: t!("relay.current_configured_endpoint"),
+                    color: "blue".to_string(),
+                }])
+            }
+        }
+    } else {
+        Err(t!("relay.station_not_found"))
+    }
+}
+
+/// Save relay station configuration
+#[tauri::command]
+pub async fn save_station_config(
+    config_request: SaveStationConfigRequest,
+    app: AppHandle,
+) -> Result<String, String> {
+    let state: State<Mutex<Option<RelayStationManager>>> = app.state();
+    
+    // Get the station first
+    let station = {
+        let manager_lock = state.lock().map_err(|e| t!("relay.lock_error", "error" => &e.to_string()))?;
+        if let Some(manager) = manager_lock.as_ref() {
+            manager.get_station(&config_request.station_id).map_err(|e| t!("relay.failed_to_get_station", "error" => &e.to_string()))?
+        } else {
+            return Err(t!("relay.manager_not_initialized"));
+        }
+    };
+    
+    if let Some(station) = station {
+        let now = Utc::now().timestamp();
+        
+        let config = RelayStationConfig {
+            station_id: config_request.station_id.clone(),
+            station_name: station.name.clone(),
+            api_endpoint: config_request.api_endpoint,
+            custom_endpoint: config_request.custom_endpoint,
+            path: config_request.path,
+            model: config_request.model,
+            saved_settings: None,
+            created_at: now,
+            updated_at: now,
+        };
+        
+        // Save to database
+        {
+            let mut manager_lock = state.lock().map_err(|e| t!("relay.lock_error", "error" => &e.to_string()))?;
+            if let Some(manager) = manager_lock.as_mut() {
+                manager.save_station_config(&config).map_err(|e| t!("relay.failed_to_save_config", "error" => &e.to_string()))?;
+            }
+        }
+        
+        Ok(t!("relay.config_save_success"))
+    } else {
+        Err(t!("relay.station_not_found"))
+    }
+}
+
+/// Get saved relay station configuration
+#[tauri::command]
+pub async fn get_station_config(
+    station_id: String,
+    app: AppHandle,
+) -> Result<Option<RelayStationConfig>, String> {
+    let state: State<Mutex<Option<RelayStationManager>>> = app.state();
+    
+    let manager_lock = state.lock().map_err(|e| t!("relay.lock_error", "error" => &e.to_string()))?;
+    if let Some(manager) = manager_lock.as_ref() {
+        manager.get_station_config(&station_id).map_err(|e| t!("relay.failed_to_get_config", "error" => &e.to_string()))
+    } else {
+        Err(t!("relay.manager_not_initialized"))
+    }
+}
+
+/// Get configuration usage status for display
+#[tauri::command]
+pub async fn get_config_usage_status(app: AppHandle) -> Result<Vec<ConfigUsageStatus>, String> {
+    let state: State<Mutex<Option<RelayStationManager>>> = app.state();
+    
+    let manager_lock = state.lock().map_err(|e| t!("relay.lock_error", "error" => &e.to_string()))?;
+    if let Some(manager) = manager_lock.as_ref() {
+        manager.get_config_usage_status().map_err(|e| t!("relay.failed_to_get_usage_status", "error" => &e.to_string()))
+    } else {
+        Err(t!("relay.manager_not_initialized"))
+    }
+}
+
+/// Record configuration usage (when a config is applied)
+#[tauri::command]
+pub async fn record_config_usage(
+    station_id: String,
+    base_url: String,
+    token: String,
+    app: AppHandle,
+) -> Result<String, String> {
+    let state: State<Mutex<Option<RelayStationManager>>> = app.state();
+    
+    let mut manager_lock = state.lock().map_err(|e| t!("relay.lock_error", "error" => &e.to_string()))?;
+    if let Some(manager) = manager_lock.as_mut() {
+        manager.record_config_usage(&station_id, &base_url, &token).map_err(|e| t!("relay.failed_to_record_usage", "error" => &e.to_string()))?;
+        Ok(t!("relay.usage_record_updated"))
+    } else {
+        Err(t!("relay.manager_not_initialized"))
+    }
+}
+
+/// Export relay stations to JSON
+#[tauri::command]
+pub async fn export_relay_stations(
+    station_ids: Option<Vec<String>>,
+    app: AppHandle,
+) -> Result<RelayStationExport, String> {
+    let state: State<Mutex<Option<RelayStationManager>>> = app.state();
+    let manager_lock = state.lock().map_err(|e| t!("relay.lock_error", "error" => &e.to_string()))?;
+    
+    if let Some(manager) = manager_lock.as_ref() {
+        manager.export_stations(station_ids).map_err(|e| t!("relay.failed_to_export_stations", "error" => &e.to_string()))
+    } else {
+        Err(t!("relay.manager_not_initialized"))
+    }
+}
+
+/// Import relay stations from JSON
+#[tauri::command]
+pub async fn import_relay_stations(
+    export_data: RelayStationExport,
+    overwrite_existing: bool,
+    app: AppHandle,
+) -> Result<Vec<String>, String> {
+    let state: State<Mutex<Option<RelayStationManager>>> = app.state();
+    let manager_lock = state.lock().map_err(|e| t!("relay.lock_error", "error" => &e.to_string()))?;
+    
+    if let Some(manager) = manager_lock.as_ref() {
+        manager.import_stations(&export_data, overwrite_existing).map_err(|e| t!("relay.failed_to_import_stations", "error" => &e.to_string()))
+    } else {
+        Err(t!("relay.manager_not_initialized"))
     }
 }

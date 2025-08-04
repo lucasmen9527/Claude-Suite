@@ -245,19 +245,26 @@ export const ClaudeCodeSession: React.FC<ClaudeCodeSessionProps> = ({
     onStreamingChange?.(isLoading, claudeSessionId);
   }, [isLoading, claudeSessionId, onStreamingChange]);
 
-  // Auto-scroll to bottom when new messages arrive or when streaming updates
+  // Auto-scroll to show the last message with proper spacing (using existing paddingBottom)
   useEffect(() => {
     if (displayableMessages.length > 0) {
       // Add a small delay to ensure DOM is updated
       const timeoutId = setTimeout(() => {
-        rowVirtualizer.scrollToIndex(displayableMessages.length - 1, { align: 'end', behavior: 'smooth' });
+        // Scroll to bottom of container naturally - paddingBottom will provide the spacing
+        if (parentRef.current) {
+          const scrollElement = parentRef.current;
+          scrollElement.scrollTo({
+            top: scrollElement.scrollHeight,
+            behavior: 'smooth'
+          });
+        }
       }, 100);
       
       return () => clearTimeout(timeoutId);
     }
-  }, [displayableMessages.length, messages, rowVirtualizer]); // Also trigger on messages content change
+  }, [displayableMessages.length, messages]);
 
-  // Additional auto-scroll for streaming content - force scroll when actively streaming
+  // Additional auto-scroll for streaming content - maintain bottom position during streaming
   useEffect(() => {
     if (isLoading && displayableMessages.length > 0) {
       const scrollToBottom = () => {
@@ -915,14 +922,14 @@ export const ClaudeCodeSession: React.FC<ClaudeCodeSessionProps> = ({
       ref={parentRef}
       className="flex-1 overflow-y-auto relative"
       style={{
-        paddingBottom: 'calc(240px + env(safe-area-inset-bottom))', // 增加底部空间防止遮挡
+        paddingBottom: 'calc(100px + env(safe-area-inset-bottom))', // 进一步减少底部空间，让卡片紧贴对话框上方
         paddingTop: '20px',
       }}
     >
       <div
         className="relative w-full max-w-5xl mx-auto px-4 pt-8 pb-4"
         style={{
-          height: `${Math.max(rowVirtualizer.getTotalSize(), 100)}px`,
+          height: `${Math.max(rowVirtualizer.getTotalSize() + (isLoading && displayableMessages.length > 0 ? 60 : 0), 100)}px`,
           minHeight: '100px',
         }}
       >
@@ -951,20 +958,24 @@ export const ClaudeCodeSession: React.FC<ClaudeCodeSessionProps> = ({
               </motion.div>
             );
           })}
+          
+          {/* Loading indicator as the last item in the message flow */}
+          {isLoading && displayableMessages.length > 0 && (
+            <motion.div
+              key="loading-indicator"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-x-4 flex items-center justify-center py-4"
+              style={{
+                top: rowVirtualizer.getTotalSize(),
+              }}
+            >
+              <div className="rotating-symbol text-primary" />
+            </motion.div>
+          )}
         </AnimatePresence>
       </div>
-
-      {/* Loading indicator under the latest message */}
-      {isLoading && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex items-center justify-center py-4 mb-48"
-          style={{ marginBottom: 'calc(200px + env(safe-area-inset-bottom))' }}
-        >
-          <div className="rotating-symbol text-primary" />
-        </motion.div>
-      )}
 
       {/* Error indicator */}
       {error && (
@@ -972,7 +983,7 @@ export const ClaudeCodeSession: React.FC<ClaudeCodeSessionProps> = ({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           className="rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-sm text-destructive mb-48 w-full max-w-5xl mx-auto"
-          style={{ marginBottom: 'calc(200px + env(safe-area-inset-bottom))' }}
+          style={{ marginBottom: 'calc(60px + env(safe-area-inset-bottom))' }}
         >
           {error}
         </motion.div>

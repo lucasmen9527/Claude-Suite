@@ -1,3 +1,4 @@
+pub mod about;
 pub mod agents;
 pub mod claude;
 pub mod mcp;

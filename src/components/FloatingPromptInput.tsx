@@ -516,6 +516,17 @@ const FloatingPromptInputInner = (
       }
     }
 
+    // Check if slash command picker should be closed when / is cleared
+    if (showSlashCommandPicker) {
+      // Look for any slash in the current input
+      const hasSlash = newValue.includes('/');
+      if (!hasSlash) {
+        // No slash found anywhere, close the picker
+        setShowSlashCommandPicker(false);
+        setSlashCommandQuery("");
+      }
+    }
+
     // Check if we're typing after @ (for search query)
     if (showFilePicker && newCursorPosition >= cursorPosition) {
       // Find the @ position before cursor

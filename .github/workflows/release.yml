@@ -1,0 +1,104 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g., v1.0.0)'
+        required: true
+        type: string
+      prerelease:
+        description: 'Mark as pre-release'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-and-release:
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [macos-latest, ubuntu-20.04, windows-latest]
+
+    runs-on: ${{ matrix.platform }}
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Install dependencies (ubuntu only)
+      if: matrix.platform == 'ubuntu-20.04'
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.0-dev libappindicator3-dev librsvg2-dev patchelf
+
+    - name: Setup Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Rust cache
+      uses: swatinem/rust-cache@v2
+      with:
+        workspaces: './src-tauri -> target'
+
+    - name: Setup Bun
+      uses: oven-sh/setup-bun@v1
+      with:
+        bun-version: latest
+
+    - name: Install frontend dependencies
+      run: bun install
+
+    - name: Build frontend
+      run: bun run build
+
+    - name: Build Tauri app
+      uses: tauri-apps/tauri-action@v0
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tagName: ${{ github.event.inputs.version }}
+        releaseName: 'Claude Suite ${{ github.event.inputs.version }}'
+        releaseBody: |
+          ## 🚀 Claude Suite ${{ github.event.inputs.version }}
+          
+          ### 📦 下载说明
+          - **Windows**: 下载 `.msi` 或 `.exe` 安装包
+          - **macOS**: 下载 `.dmg` 文件
+          - **Linux**: 下载 `.AppImage` 或 `.deb` 文件
+          
+          ### 🔧 构建信息
+          - 构建时间: ${{ github.run_started_at }}
+          - 提交: ${{ github.sha }}
+          
+          ---
+          Full Changelog: https://github.com/${{ github.repository }}/compare/v${{ github.event.inputs.version }}...HEAD
+        releaseDraft: false
+        prerelease: ${{ github.event.inputs.prerelease }}
+        tauriScript: npm run tauri
+
+  create-universal-release:
+    needs: build-and-release
+    runs-on: ubuntu-latest
+    if: always()
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Create Release Summary
+      run: |
+        echo "## 🎉 Release ${{ github.event.inputs.version }} Created Successfully!" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📦 Available Downloads:" >> $GITHUB_STEP_SUMMARY
+        echo "- Windows (MSI Installer)" >> $GITHUB_STEP_SUMMARY
+        echo "- Windows (NSIS Installer)" >> $GITHUB_STEP_SUMMARY
+        echo "- macOS (DMG)" >> $GITHUB_STEP_SUMMARY
+        echo "- Linux (AppImage)" >> $GITHUB_STEP_SUMMARY
+        echo "- Linux (DEB Package)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 🔗 Links:" >> $GITHUB_STEP_SUMMARY
+        echo "- [Release Page](https://github.com/${{ github.repository }}/releases/tag/${{ github.event.inputs.version }})" >> $GITHUB_STEP_SUMMARY
+        echo "- [All Releases](https://github.com/${{ github.repository }}/releases)" >> $GITHUB_STEP_SUMMARY

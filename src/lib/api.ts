@@ -438,6 +438,10 @@ export interface SlashCommand {
   content: string;
   /** Optional description from frontmatter */
   description?: string;
+  /** I18n key for content (used for default commands) */
+  content_i18n_key?: string;
+  /** I18n key for description (used for default commands) */
+  description_i18n_key?: string;
   /** Allowed tools from frontmatter */
   allowed_tools: string[];
   /** Whether the command has bash commands (!) */
@@ -591,6 +595,68 @@ export interface UserGroupsResponse {
     desc: string;
     ratio: number;
   }>;
+}
+
+/**
+ * Token configuration for a relay station
+ */
+/** API endpoint information from api_status.har */
+export interface ApiEndpoint {
+  id: number;
+  route: string;
+  url: string;
+  description: string;
+  color: string;
+}
+
+/** Relay station configuration for detailed setup */
+export interface RelayStationConfig {
+  station_id: string;
+  station_name: string;
+  api_endpoint: string;
+  custom_endpoint?: string;
+  path?: string;
+  model?: string;
+  saved_settings?: Record<string, any>;
+  created_at: number;
+  updated_at: number;
+}
+
+/** Request for saving relay station configuration */
+export interface SaveStationConfigRequest {
+  station_id: string;
+  api_endpoint: string;
+  custom_endpoint?: string;
+  path?: string;
+  model?: string;
+}
+
+/** Configuration usage status for display */
+export interface ConfigUsageStatus {
+  station_id: string;
+  station_name: string;
+  base_url: string;
+  token: string;
+  is_active: boolean;
+  applied_at?: number;
+}
+
+export interface RelayStationExport {
+  version: number;
+  exported_at: number;
+  stations: RelayStationExportItem[];
+}
+
+export interface RelayStationExportItem {
+  name: string;
+  description?: string;
+  api_url: string;
+  adapter: RelayStationAdapter;
+  auth_method: 'bearer_token' | 'api_key' | 'custom';
+  system_token: string;
+  user_id?: string;
+  adapter_config?: Record<string, any>;
+  enabled: boolean;
 }
 
 /**
@@ -774,6 +840,36 @@ export interface ConnectionTestResult {
   status_code?: number;
   /** Additional test details */
   details?: Record<string, any>;
+}
+
+/**
+ * Application information including version and database location
+ */
+export interface AppInfo {
+  /** Current application version */
+  version: string;
+  /** Path to the application database */
+  database_path: string;
+  /** Latest available version (if checked) */
+  latest_version?: string;
+  /** Whether an update is available */
+  update_available: boolean;
+}
+
+/**
+ * Update information from GitHub releases
+ */
+export interface UpdateInfo {
+  /** Latest version available */
+  latest_version: string;
+  /** Current application version */
+  current_version: string;
+  /** Whether an update is available */
+  update_available: boolean;
+  /** Download URL for the latest release */
+  download_url?: string;
+  /** Release notes for the latest version */
+  release_notes?: string;
 }
 
 /**
@@ -2716,6 +2812,165 @@ export const api = {
       return await invoke<ConnectionTestResult>("test_station_connection", { stationId });
     } catch (error) {
       console.error("Failed to test station connection:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Load API endpoints from station API status
+   * @param stationId - The ID of the relay station
+   * @returns Promise resolving to array of available API endpoints
+   */
+  async loadStationApiEndpoints(stationId: string): Promise<ApiEndpoint[]> {
+    try {
+      return await invoke<ApiEndpoint[]>("load_station_api_endpoints", { stationId });
+    } catch (error) {
+      console.error("Failed to load station API endpoints:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Save relay station configuration
+   * @param configRequest - The configuration to save
+   * @returns Promise resolving to success message
+   */
+  async saveStationConfig(configRequest: SaveStationConfigRequest): Promise<string> {
+    try {
+      return await invoke<string>("save_station_config", { configRequest });
+    } catch (error) {
+      console.error("Failed to save station config:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get saved relay station configuration
+   * @param stationId - The ID of the relay station
+   * @returns Promise resolving to saved configuration (if any)
+   */
+  async getStationConfig(stationId: string): Promise<RelayStationConfig | null> {
+    try {
+      return await invoke<RelayStationConfig | null>("get_station_config", { stationId });
+    } catch (error) {
+      console.error("Failed to get station config:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Get configuration usage status for display
+   * @returns Promise resolving to array of configuration usage status
+   */
+  async getConfigUsageStatus(): Promise<ConfigUsageStatus[]> {
+    try {
+      return await invoke<ConfigUsageStatus[]>("get_config_usage_status");
+    } catch (error) {
+      console.error("Failed to get config usage status:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Record configuration usage (when a config is applied)
+   * @param stationId - The ID of the relay station
+   * @param baseUrl - The base URL being used
+   * @param token - The token being used
+   * @returns Promise resolving to success message
+   */
+  async recordConfigUsage(stationId: string, baseUrl: string, token: string): Promise<string> {
+    try {
+      return await invoke<string>("record_config_usage", { stationId, baseUrl, token });
+    } catch (error) {
+      console.error("Failed to record config usage:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Exports relay stations to JSON format
+   * @param stationIds - Optional array of station IDs to export (exports all if not provided)
+   * @returns Promise resolving to export data
+   */
+  async exportRelayStations(stationIds?: string[]): Promise<RelayStationExport> {
+    try {
+      return await invoke<RelayStationExport>("export_relay_stations", { 
+        stationIds: stationIds || null 
+      });
+    } catch (error) {
+      console.error("Failed to export relay stations:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Imports relay stations from JSON format
+   * @param exportData - The export data to import
+   * @param overwriteExisting - Whether to overwrite existing stations with same names
+   * @returns Promise resolving to array of imported station names
+   */
+  async importRelayStations(exportData: RelayStationExport, overwriteExisting: boolean = false): Promise<string[]> {
+    try {
+      return await invoke<string[]>("import_relay_stations", { 
+        exportData, 
+        overwriteExisting 
+      });
+    } catch (error) {
+      console.error("Failed to import relay stations:", error);
+      throw error;
+    }
+  },
+
+  // About / App Information methods
+
+  /**
+   * Gets the current application version
+   * @returns Promise resolving to version string
+   */
+  async getAppVersion(): Promise<string> {
+    try {
+      return await invoke<string>("get_app_version");
+    } catch (error) {
+      console.error("Failed to get app version:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Gets the database file path
+   * @returns Promise resolving to database path string
+   */
+  async getDatabasePath(): Promise<string> {
+    try {
+      return await invoke<string>("get_database_path");
+    } catch (error) {
+      console.error("Failed to get database path:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Gets comprehensive application information
+   * @returns Promise resolving to app info object
+   */
+  async getAppInfo(): Promise<AppInfo> {
+    try {
+      return await invoke<AppInfo>("get_app_info");
+    } catch (error) {
+      console.error("Failed to get app info:", error);
+      throw error;
+    }
+  },
+
+  /**
+   * Checks for updates from GitHub releases
+   * @returns Promise resolving to update information
+   */
+  async checkForUpdates(): Promise<UpdateInfo> {
+    try {
+      return await invoke<UpdateInfo>("check_for_updates");
+    } catch (error) {
+      console.error("Failed to check for updates:", error);
       throw error;
     }
   }

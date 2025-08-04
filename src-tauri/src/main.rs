@@ -42,6 +42,9 @@ use commands::usage::{
     get_session_stats, get_usage_by_date_range, get_usage_details, get_usage_stats,
     get_today_usage_stats, get_usage_by_api_base_url, get_active_sessions, get_burn_rate_analysis,
 };
+use commands::about::{
+    get_app_version, get_database_path, get_app_info, check_for_updates,
+};
 use commands::storage::{
     storage_list_tables, storage_read_table, storage_update_row, storage_delete_row,
     storage_insert_row, storage_execute_sql, storage_reset_database,
@@ -60,6 +63,8 @@ use commands::relay_stations::{
     delete_relay_station, get_station_info, list_station_tokens, add_station_token,
     update_station_token, delete_station_token, get_token_user_info, get_station_logs,
     test_station_connection, api_user_self_groups, toggle_station_token, RelayStationManager,
+    load_station_api_endpoints, save_station_config, get_station_config,
+    get_config_usage_status, record_config_usage, export_relay_stations, import_relay_stations,
 };
 use process::ProcessRegistryState;
 use std::sync::Mutex;
@@ -73,6 +78,7 @@ fn main() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_shell::init())
+        .plugin(tauri_plugin_fs::init())
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .setup(|app| {
             // Initialize agents database
@@ -270,6 +276,19 @@ fn main() {
             test_station_connection,
             api_user_self_groups,
             toggle_station_token,
+            load_station_api_endpoints,
+            save_station_config,
+            get_station_config,
+            get_config_usage_status,
+            record_config_usage,
+            export_relay_stations,
+            import_relay_stations,
+            
+            // About / App Information
+            get_app_version,
+            get_database_path,
+            get_app_info,
+            check_for_updates,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

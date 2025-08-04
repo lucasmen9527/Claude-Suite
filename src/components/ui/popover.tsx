@@ -1,5 +1,6 @@
 import * as React from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 
 interface PopoverProps {
@@ -31,6 +32,10 @@ interface PopoverProps {
    * Side of the trigger to display the popover
    */
   side?: "top" | "bottom";
+  /**
+   * Whether to render as a modal (using portal)
+   */
+  modal?: boolean;
 }
 
 /**
@@ -51,6 +56,7 @@ export const Popover: React.FC<PopoverProps> = ({
   className,
   align = "center",
   side = "bottom",
+  modal = false,
 }) => {
   const [internalOpen, setInternalOpen] = React.useState(false);
   const open = controlledOpen !== undefined ? controlledOpen : internalOpen;
@@ -58,6 +64,25 @@ export const Popover: React.FC<PopoverProps> = ({
   
   const triggerRef = React.useRef<HTMLDivElement>(null);
   const contentRef = React.useRef<HTMLDivElement>(null);
+  const [position, setPosition] = React.useState({ top: 0, left: 0 });
+  
+  // Calculate position for modal popovers
+  React.useEffect(() => {
+    if (modal && open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      let top = side === "top" ? rect.top - 8 : rect.bottom + 8;
+      let left = rect.left;
+      
+      // Adjust based on alignment
+      if (align === "center") {
+        left = rect.left + rect.width / 2;
+      } else if (align === "end") {
+        left = rect.right;
+      }
+      
+      setPosition({ top, left });
+    }
+  }, [modal, open, side, align]);
   
   // Close on click outside
   React.useEffect(() => {
@@ -101,6 +126,30 @@ export const Popover: React.FC<PopoverProps> = ({
   const sideClass = side === "top" ? "bottom-full mb-2" : "top-full mt-2";
   const animationY = side === "top" ? { initial: 10, exit: 10 } : { initial: -10, exit: -10 };
   
+  const popoverContent = (
+    <AnimatePresence>
+      {open && (
+        <motion.div
+          ref={contentRef}
+          initial={{ opacity: 0, scale: 0.95, y: animationY.initial }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: animationY.exit }}
+          transition={{ duration: 0.15 }}
+          className={cn(
+            "min-w-[200px] rounded-md border border-border bg-popover p-4 text-popover-foreground shadow-md",
+            modal ? "absolute z-layer-status-modal" : cn("absolute z-50", sideClass, alignClass),
+            modal && align === "center" && "-translate-x-1/2",
+            modal && align === "end" && "-translate-x-full",
+            className
+          )}
+          style={modal ? { top: position.top, left: position.left } : undefined}
+        >
+          {content}
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
+  
   return (
     <div className="relative inline-block">
       <div
@@ -110,25 +159,7 @@ export const Popover: React.FC<PopoverProps> = ({
         {trigger}
       </div>
       
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            ref={contentRef}
-            initial={{ opacity: 0, scale: 0.95, y: animationY.initial }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: animationY.exit }}
-            transition={{ duration: 0.15 }}
-            className={cn(
-              "absolute z-50 min-w-[200px] rounded-md border border-border bg-popover p-4 text-popover-foreground shadow-md",
-              sideClass,
-              alignClass,
-              className
-            )}
-          >
-            {content}
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {modal ? createPortal(popoverContent, document.body) : popoverContent}
     </div>
   );
 }; 

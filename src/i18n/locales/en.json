@@ -950,7 +950,46 @@
     "extensiveReasoning": "Extensive reasoning",
     "maximumComputation": "Maximum computation",
     "fasterEfficient": "Faster, efficient for most tasks",
-    "moreCapableBetter": "More capable, better for complex tasks"
+    "moreCapableBetter": "More capable, better for complex tasks",
+    "aboutApplicationDescription": "View application information, version, and system details",
+    "applicationVersion": "Application Version",
+    "databaseLocation": "Database Location",
+    "updateCheck": "Update Check",
+    "updateCheckDescription": "Check if a new version is available",
+    "checkForUpdates": "Check for Updates",
+    "checking": "Checking...",
+    "updateAvailable": "Update Available",
+    "upToDate": "You are up to date",
+    "failedToCheckUpdates": "Failed to check for updates",
+    "currentVersion": "Current Version",
+    "latestVersion": "Latest Version",
+    "download": "Download",
+    "releaseNotes": "Release Notes",
+    "applicationDescription": "Professional desktop application and toolkit for Claude CLI",
+    "loading": "Loading..."
+  },
+  "slashCommandPicker": {
+    "title": "Slash Commands",
+    "searchPlaceholder": "Searching: \"{query}\"",
+    "tabDefault": "Default",
+    "tabCustom": "Custom",
+    "noDefaultCommands": "No default commands available",
+    "noDefaultCommandsSearch": "No commands found",
+    "defaultCommandsDescription": "Default commands are built-in system commands",
+    "noCustomCommands": "No custom commands available",
+    "noCustomCommandsSearch": "No commands found",
+    "customCommandsDescription": "Create commands in .claude/commands/ or ~/.claude/commands/",
+    "loadingCommands": "Loading commands...",
+    "keyboardShortcuts": "↑↓ Navigate • Enter Select • Esc Close",
+    "userCommands": "User Commands",
+    "projectCommands": "Project Commands",
+    "arguments": "[args]",
+    "toolsCount": "{count} tools",
+    "bashIndicator": "Bash",
+    "filesIndicator": "Files",
+    "scopeDefault": "default",
+    "scopeUser": "user",
+    "scopeProject": "project"
   },
   "relayStations": {
     "title": "Relay Station Manager",
@@ -999,11 +1038,39 @@
     "addStationSuccess": "Station added successfully",
     "updateStationSuccess": "Station updated successfully",
     "deleteStationSuccess": "Station deleted successfully",
+    "exportStationSuccess": "Stations exported successfully",
+    "importStationSuccess": "Stations imported successfully",
+    "exportStationFailed": "Failed to export stations",
+    "importStationFailed": "Failed to import stations",
     "fetchStationsFailed": "Failed to fetch station list",
     "deleteStationFailed": "Failed to delete station",
     "addStationDialog": {
       "title": "Add Station",
       "description": "Add a new relay station configuration"
+    },
+    "importStationDialog": {
+      "title": "Import Stations",
+      "description": "Import relay station configurations from JSON file",
+      "fileInfo": "Import File Information",
+      "version": "Version",
+      "exportTime": "Export Time",
+      "stationCount": "Station Count",
+      "stationsToImport": "Stations to Import",
+      "overwriteExisting": "Overwrite existing stations with same names",
+      "overwriteHint": "Existing stations with same names will be skipped. Enable \"Overwrite existing stations\" option to update existing configurations.",
+      "importing": "Importing...",
+      "importButton": "Import {count} stations",
+      "invalidFileFormat": "Invalid import file format",
+      "readFileFailed": "Failed to read import file, please check file format"
+    },
+    "exportStation": {
+      "button": "Export Stations",
+      "exporting": "Exporting...",
+      "selectAll": "Export All",
+      "selectSpecific": "Export Selected",
+      "filename": "relay_stations_{timestamp}.json",
+      "successMessage": "Successfully exported {count} stations to {path}",
+      "failedMessage": "Failed to export stations, please try again"
     },
     "stationDetailsDialog": {
       "title": "Station Details",
@@ -1023,6 +1090,120 @@
       "bearerToken": "Bearer Token",
       "apiKey": "API Key",
       "custom": "Custom"
+    }
+  },
+  "defaultSlashCommands": {
+    "addDir": {
+      "content": "Add a new working directory",
+      "description": "Add a new working directory"
+    },
+    "agents": {
+      "content": "Manage agent configurations",
+      "description": "Manage agent configurations"
+    },
+    "clear": {
+      "content": "Clear conversation history and free up context",
+      "description": "Clear conversation history and free up context (reset)"
+    },
+    "compact": {
+      "content": "Clear conversation history but keep a summary in context",
+      "description": "Clear conversation history but keep a summary in context"
+    },
+    "config": {
+      "content": "Open config panel",
+      "description": "Open config panel (theme)"
+    },
+    "cost": {
+      "content": "Show the total cost and duration of the current session",
+      "description": "Show the total cost and duration of the current session"
+    },
+    "doctor": {
+      "content": "Diagnose and verify your Claude Code installation and settings",
+      "description": "Diagnose and verify your Claude Code installation and settings"
+    },
+    "exit": {
+      "content": "Exit the REPL",
+      "description": "Exit the REPL (quit)"
+    },
+    "export": {
+      "content": "Export the current conversation to a file or clipboard",
+      "description": "Export the current conversation to a file or clipboard"
+    },
+    "help": {
+      "content": "Show help and available commands",
+      "description": "Show help and available commands"
+    },
+    "hooks": {
+      "content": "Manage hook configurations for tool events",
+      "description": "Manage hook configurations for tool events"
+    },
+    "ide": {
+      "content": "Manage IDE integrations and show status",
+      "description": "Manage IDE integrations and show status"
+    },
+    "init": {
+      "content": "Initialize a new CLAUDE.md file with codebase documentation",
+      "description": "Initialize a new CLAUDE.md file with codebase documentation"
+    },
+    "installGithubApp": {
+      "content": "Set up Claude GitHub Actions for a repository",
+      "description": "Set up Claude GitHub Actions for a repository"
+    },
+    "login": {
+      "content": "Sign in with your Anthropic account",
+      "description": "Sign in with your Anthropic account"
+    },
+    "logout": {
+      "content": "Sign out from your Anthropic account",
+      "description": "Sign out from your Anthropic account"
+    },
+    "mcp": {
+      "content": "Manage MCP servers",
+      "description": "Manage MCP servers"
+    },
+    "memory": {
+      "content": "Edit Claude memory files",
+      "description": "Edit Claude memory files"
+    },
+    "migrateInstaller": {
+      "content": "Migrate from global npm installation to local installation",
+      "description": "Migrate from global npm installation to local installation"
+    },
+    "model": {
+      "content": "Set the AI model for Claude Code",
+      "description": "Set the AI model for Claude Code"
+    },
+    "permissions": {
+      "content": "Manage allow & deny tool permission rules",
+      "description": "Manage allow & deny tool permission rules (allowed-tools)"
+    },
+    "prComments": {
+      "content": "Get comments from a GitHub pull request",
+      "description": "Get comments from a GitHub pull request"
+    },
+    "releaseNotes": {
+      "content": "View release notes",
+      "description": "View release notes"
+    },
+    "resume": {
+      "content": "Resume a conversation",
+      "description": "Resume a conversation"
+    },
+    "review": {
+      "content": "Review a pull request",
+      "description": "Review a pull request"
+    },
+    "status": {
+      "content": "Show Claude Code status including version, model, account, API connectivity, and tool statuses",
+      "description": "Show Claude Code status including version, model, account, API connectivity, and tool statuses"
+    },
+    "upgrade": {
+      "content": "Upgrade to Max for higher rate limits and more Opus",
+      "description": "Upgrade to Max for higher rate limits and more Opus"
+    },
+    "vim": {
+      "content": "Toggle between Vim and Normal editing modes",
+      "description": "Toggle between Vim and Normal editing modes"
     }
   }
 }
