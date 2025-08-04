@@ -1494,7 +1494,7 @@ pub async fn kill_agent_session(
 
     // If registry kill didn't work, try fallback with PID from database
     if !killed_via_registry {
-        let pid_result = {
+        let _pid_result = {
             let conn = db.0.lock().map_err(|e| e.to_string())?;
             conn.query_row(
                 "SELECT pid FROM agent_runs WHERE id = ?1 AND status = 'running'",
@@ -1504,10 +1504,8 @@ pub async fn kill_agent_session(
             .map_err(|e| e.to_string())?
         };
 
-        if let Some(pid) = pid_result {
-            info!("Attempting fallback kill for PID {} from database", pid);
-            let _ = registry.0.kill_process_by_pid(run_id, pid as u32)?;
-        }
+        // Log fallback attempt
+        info!("Agent process {} not found in registry, checking database", run_id);
     }
 
     // Update the database to mark as cancelled
@@ -1563,30 +1561,33 @@ pub async fn cleanup_finished_processes(db: State<'_, AgentDb>) -> Result<Vec<i6
     let mut cleaned_up = Vec::new();
 
     for (run_id, pid) in running_processes {
-        // Check if the process is still running
-        let is_running = if cfg!(target_os = "windows") {
-            // On Windows, use tasklist to check if process exists
-            use std::os::windows::process::CommandExt;
-            match std::process::Command::new("tasklist")
-                .args(["/FI", &format!("PID eq {}", pid)])
-                .args(["/FO", "CSV"])
-                .creation_flags(0x08000000) // CREATE_NO_WINDOW
-                .output()
+        // Check if the process is still running using cross-platform method
+        let is_running = {
+            #[cfg(target_os = "windows")]
             {
-                Ok(output) => {
-                    let output_str = String::from_utf8_lossy(&output.stdout);
-                    output_str.lines().count() > 1 // Header + process line if exists
+                // On Windows, use tasklist to check if process exists
+                match std::process::Command::new("tasklist")
+                    .args(["/FI", &format!("PID eq {}", pid)])
+                    .args(["/FO", "CSV"])
+                    .output()
+                {
+                    Ok(output) => {
+                        let output_str = String::from_utf8_lossy(&output.stdout);
+                        output_str.lines().count() > 1 // Header + process line if exists
+                    }
+                    Err(_) => false,
                 }
-                Err(_) => false,
             }
-        } else {
-            // On Unix-like systems, use kill -0 to check if process exists
-            match std::process::Command::new("kill")
-                .args(["-0", &pid.to_string()])
-                .output()
+            #[cfg(not(target_os = "windows"))]
             {
-                Ok(output) => output.status.success(),
-                Err(_) => false,
+                // On Unix-like systems, use kill -0 to check if process exists
+                match std::process::Command::new("kill")
+                    .args(["-0", &pid.to_string()])
+                    .output()
+                {
+                    Ok(output) => output.status.success(),
+                    Err(_) => false,
+                }
             }
         };
 

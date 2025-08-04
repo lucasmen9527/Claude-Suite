@@ -4,7 +4,6 @@ use tauri::{AppHandle, State, Manager};
 use chrono::Utc;
 use uuid::Uuid;
 use anyhow::{Result, anyhow};
-use reqwest;
 use rusqlite::{params, Connection};
 use std::sync::Mutex;
 

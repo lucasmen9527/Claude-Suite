@@ -823,7 +823,7 @@ export const StorageTab: React.FC = () => {
                 id="sql-query"
                 value={sqlQuery}
                 onChange={(e) => setSqlQuery(e.target.value)}
-                placeholder={t('common.sqlQuery')}
+                placeholder={t('common.sqlQuerycommand')}
                 className="font-mono text-sm h-32"
               />
             </div>

@@ -1,7 +1,6 @@
 use serde::Serialize;
-use tauri::{AppHandle, command};
+use tauri::command;
 use std::env;
-use std::path::PathBuf;
 
 #[derive(Debug, Serialize)]
 pub struct AppInfo {

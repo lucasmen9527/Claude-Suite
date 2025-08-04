@@ -11,7 +11,6 @@ use tokio::process::{Child, Command};
 use tokio::sync::Mutex;
 use tauri_plugin_shell::ShellExt;
 use regex;
-use crate::claude_binary::{ClaudeInstallation, InstallationType};
 
 /// Global state to track current Claude process
 pub struct ClaudeProcessState {
@@ -1288,11 +1287,19 @@ pub async fn cancel_claude_execution(
                     if let Some(pid) = pid {
                         log::info!("Attempting system kill as last resort for PID: {}", pid);
                         let kill_result = if cfg!(target_os = "windows") {
-                            use std::os::windows::process::CommandExt;
-                            std::process::Command::new("taskkill")
-                                .args(["/F", "/PID", &pid.to_string()])
-                                .creation_flags(0x08000000) // CREATE_NO_WINDOW
-                                .output()
+                            #[cfg(target_os = "windows")]
+                            {
+                                use std::os::windows::process::CommandExt;
+                                std::process::Command::new("taskkill")
+                                    .args(["/F", "/PID", &pid.to_string()])
+                                    .creation_flags(0x08000000) // CREATE_NO_WINDOW
+                                    .output()
+                            }
+                            #[cfg(not(target_os = "windows"))]
+                            {
+                                // This branch will never be reached due to the outer if condition
+                                unreachable!()
+                            }
                         } else {
                             std::process::Command::new("kill")
                                 .args(["-KILL", &pid.to_string()])

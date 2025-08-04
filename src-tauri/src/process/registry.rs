@@ -244,15 +244,10 @@ impl ProcessRegistry {
             }
         };
 
-        // If direct kill didn't work, try system command as fallback
+        // If direct kill didn't work, log it
         if !kill_sent {
-            info!("Attempting fallback kill for process {} (PID: {})", run_id, pid);
-            match self.kill_process_by_pid(run_id, pid) {
-                Ok(true) => return Ok(true),
-                Ok(false) => warn!("Fallback kill also failed for process {} (PID: {})", run_id, pid),
-                Err(e) => error!("Error during fallback kill: {}", e),
-            }
-            // Continue with the rest of the cleanup even if fallback failed
+            warn!("Could not send kill signal to process {} (PID: {})", run_id, pid);
+            // Continue with the rest of the cleanup
         }
 
         // Wait for the process to exit (with timeout)
@@ -307,8 +302,7 @@ impl ProcessRegistry {
                 if let Ok(mut child_guard) = child_arc.lock() {
                     *child_guard = None;
                 }
-                // One more attempt with system kill
-                let _ = self.kill_process_by_pid(run_id, pid);
+                // Process cleanup completed
             }
         }
 
@@ -316,82 +310,6 @@ impl ProcessRegistry {
         self.unregister_process(run_id)?;
 
         Ok(true)
-    }
-
-    /// Kill a process by PID using system commands (fallback method)
-    pub fn kill_process_by_pid(&self, run_id: i64, pid: u32) -> Result<bool, String> {
-        use log::{error, info, warn};
-
-        info!("Attempting to kill process {} by PID {}", run_id, pid);
-
-        let kill_result = if cfg!(target_os = "windows") {
-            use std::os::windows::process::CommandExt;
-            std::process::Command::new("taskkill")
-                .args(["/F", "/PID", &pid.to_string()])
-                .creation_flags(0x08000000) // CREATE_NO_WINDOW
-                .output()
-        } else {
-            // First try SIGTERM
-            let term_result = std::process::Command::new("kill")
-                .args(["-TERM", &pid.to_string()])
-                .output();
-
-            match &term_result {
-                Ok(output) if output.status.success() => {
-                    info!("Sent SIGTERM to PID {}", pid);
-                    // Give it 2 seconds to exit gracefully
-                    std::thread::sleep(std::time::Duration::from_secs(2));
-
-                    // Check if still running
-                    let check_result = std::process::Command::new("kill")
-                        .args(["-0", &pid.to_string()])
-                        .output();
-
-                    if let Ok(output) = check_result {
-                        if output.status.success() {
-                            // Still running, send SIGKILL
-                            warn!(
-                                "Process {} still running after SIGTERM, sending SIGKILL",
-                                pid
-                            );
-                            std::process::Command::new("kill")
-                                .args(["-KILL", &pid.to_string()])
-                                .output()
-                        } else {
-                            term_result
-                        }
-                    } else {
-                        term_result
-                    }
-                }
-                _ => {
-                    // SIGTERM failed, try SIGKILL directly
-                    warn!("SIGTERM failed for PID {}, trying SIGKILL", pid);
-                    std::process::Command::new("kill")
-                        .args(["-KILL", &pid.to_string()])
-                        .output()
-                }
-            }
-        };
-
-        match kill_result {
-            Ok(output) => {
-                if output.status.success() {
-                    info!("Successfully killed process with PID {}", pid);
-                    // Remove from registry
-                    self.unregister_process(run_id)?;
-                    Ok(true)
-                } else {
-                    let error_msg = String::from_utf8_lossy(&output.stderr);
-                    warn!("Failed to kill PID {}: {}", pid, error_msg);
-                    Ok(false)
-                }
-            }
-            Err(e) => {
-                error!("Failed to execute kill command for PID {}: {}", pid, e);
-                Err(format!("Failed to execute kill command: {}", e))
-            }
-        }
     }
 
     /// Check if a process is still running by trying to get its status

@@ -35,7 +35,6 @@ import { SlashCommandsManager } from "./SlashCommandsManager";
 import { LanguageSelector } from "./LanguageSelector";
 import { useTranslation } from "@/hooks/useTranslation";
 import { useTheme } from "@/contexts/ThemeContext";
-// import ProviderManager from "./ProviderManager";
 
 interface SettingsProps {
   /**
@@ -974,49 +973,6 @@ export const Settings: React.FC<SettingsProps> = ({
                     <p className="text-xs text-muted-foreground">
                       {t('common.rawSettingsDescription')}
                     </p>
-                    
-                    {/* Provider Status in Raw Settings - Hidden */}
-                    {/* {settings?.env && (
-                      Object.keys(settings.env).some(key => key.startsWith('ANTHROPIC_')) ? (
-                        <div className="mt-4 p-3 rounded-md bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="w-2 h-2 rounded-full bg-green-500"></div>
-                            <p className="text-sm font-medium text-green-700 dark:text-green-300">
-                              {t('common.providerConfigApplied')}
-                            </p>
-                          </div>
-                          <div className="text-xs text-green-600 dark:text-green-400 space-y-1">
-                            {settings.env.ANTHROPIC_BASE_URL && (
-                              <p><strong>{t('common.apiAddress')}:</strong> {settings.env.ANTHROPIC_BASE_URL}</p>
-                            )}
-                            {settings.env.ANTHROPIC_AUTH_TOKEN && (
-                              <p><strong>{t('common.authToken')}:</strong> ••••••••</p>
-                            )}
-                            {settings.env.ANTHROPIC_API_KEY && (
-                              <p><strong>{t('common.apiKey')}:</strong> ••••••••</p>
-                            )}
-                            {settings.env.ANTHROPIC_MODEL && (
-                              <p><strong>{t('common.model')}:</strong> {settings.env.ANTHROPIC_MODEL}</p>
-                            )}
-                          </div>
-                          <p className="text-xs text-green-600 dark:text-green-400 mt-2">
-                            💡 {t('common.providerConfigNote')}
-                          </p>
-                        </div>
-                      ) : (
-                        <div className="mt-4 p-3 rounded-md bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="w-2 h-2 rounded-full bg-gray-400"></div>
-                            <p className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                              {t('common.noProviderConfigApplied')}
-                            </p>
-                          </div>
-                          <p className="text-xs text-gray-600 dark:text-gray-400">
-                            {t('common.useProviderTabMessage')}
-                          </p>
-                        </div>
-                      )
-                    )} */}
                   </div>
                 </div>
               </Card>
@@ -1053,11 +1009,6 @@ export const Settings: React.FC<SettingsProps> = ({
                 <SlashCommandsManager className="p-0" />
               </Card>
             </TabsContent>
-            
-            {/* Provider Tab - Hidden */}
-            {/* <TabsContent value="provider">
-              <ProviderManager onBack={() => {}} onProviderChanged={loadSettings} />
-            </TabsContent> */}
             
             {/* Storage Tab */}
             <TabsContent value="storage">

@@ -378,7 +378,7 @@
     "beforeMajorRefactoring": "e.g., Before major refactoring",
     "selectTable": "Select Table",
     "searchInTable": "Search in table...",
-    "sqlQuery": "SELECT * FROM agents LIMIT 10;",
+    "sqlQuerycommand": "SELECT * FROM agents LIMIT 10;",
     "searchCommands": "Search commands...",
     "commandName": "e.g., review, fix-issue",
     "commandCategory": "e.g., frontend, backend",
