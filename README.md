@@ -1,10 +1,12 @@
 # Claude Suite
 
-> 专为 Windows 用户设计的 Claude CLI 桌面管理工具
+> Claude CLI 桌面管理工具
 >
 > 修改内容：
 > 1. 完整支持中转站管理
 > 2. 全面完善i18n
+> 3. 修复部分UI上的bug
+> 4. 支持macos 与 linux
 
 [![Release](https://img.shields.io/github/v/release/xinhai-ai/claude-suite?color=brightgreen)](https://github.com/xinhai-ai/claude-suite/releases)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
