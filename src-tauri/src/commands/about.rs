@@ -34,8 +34,8 @@ pub async fn get_database_path() -> Result<String, String> {
         .ok_or("Failed to get app data directory")?;
     
     let db_path = app_data_dir
-        .join("claude-suite")
-        .join("database.sqlite");
+        .join("claude.suite.app")
+        .join("agents.db");
     
     Ok(db_path.to_string_lossy().to_string())
 }
