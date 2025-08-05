@@ -12,6 +12,16 @@ on:
         required: false
         default: false
         type: boolean
+      release_notes:
+        description: 'Custom release notes (markdown supported)'
+        required: false
+        type: string
+        default: ''
+      include_changelog:
+        description: 'Include automatic changelog'
+        required: false
+        default: true
+        type: boolean
 
 env:
   CARGO_TERM_COLOR: always
@@ -62,7 +72,10 @@ jobs:
         tagName: ${{ github.event.inputs.version }}
         releaseName: 'Claude Suite ${{ github.event.inputs.version }}'
         releaseBody: |
-          ## 🚀 Claude Suite ${{ github.event.inputs.version }}
+          ${{ github.event.inputs.release_notes != '' && github.event.inputs.release_notes || format('## 🚀 Claude Suite {0}
+
+          {1}', github.event.inputs.version, github.event.inputs.include_changelog && '### ✨ 更新内容
+          详见下方 Assets 中的变更日志或访问仓库查看完整提交历史。' || '') }}
           
           ### 📦 下载说明
           - **Windows**: 下载 `.msi` 或 `.exe` 安装包
@@ -73,8 +86,8 @@ jobs:
           - 构建时间: ${{ github.run_started_at }}
           - 提交: ${{ github.sha }}
           
-          ---
-          Full Changelog: https://github.com/${{ github.repository }}/compare/v${{ github.event.inputs.version }}...HEAD
+          ${{ github.event.inputs.include_changelog && format('---
+          Full Changelog: https://github.com/{0}/compare/v{1}...HEAD', github.repository, github.event.inputs.version) || '' }}
         releaseDraft: false
         prerelease: ${{ github.event.inputs.prerelease }}
         tauriScript: npm run tauri
