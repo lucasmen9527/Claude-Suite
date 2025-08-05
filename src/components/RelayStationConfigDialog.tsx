@@ -55,6 +55,7 @@ interface RelayStationConfigDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   station: RelayStation;
+  selectedToken?: any; // 预选择的令牌
   onConfigApplied: () => void;
 }
 
@@ -62,6 +63,7 @@ const RelayStationConfigDialog: React.FC<RelayStationConfigDialogProps> = ({
   open,
   onOpenChange,
   station,
+  selectedToken: preselectedToken,
   onConfigApplied
 }) => {
   //const { t } = useTranslation();
@@ -90,7 +92,21 @@ const RelayStationConfigDialog: React.FC<RelayStationConfigDialogProps> = ({
       loadApiEndpoints();
       loadAvailableTokens();
     }
-  }, [open, station.id]);
+  }, [open, station.id, preselectedToken]);
+
+  // 当预选择的令牌改变时，重置令牌选择
+  useEffect(() => {
+    if (preselectedToken && availableTokens.length > 0) {
+      const foundToken = availableTokens.find(t => t.id === preselectedToken.id);
+      if (foundToken) {
+        setSelectedToken(foundToken.id);
+        setFormData(prev => ({
+          ...prev,
+          token: `sk-${foundToken.token}`
+        }));
+      }
+    }
+  }, [preselectedToken, availableTokens]);
 
   const loadCurrentConfig = async () => {
     try {
@@ -131,7 +147,27 @@ const RelayStationConfigDialog: React.FC<RelayStationConfigDialogProps> = ({
     try {
       // 从中转站获取API状态信息
       const endpoints = await api.loadStationApiEndpoints(station.id);
-      setApiEndpoints(endpoints);
+      console.debug('Raw API endpoints from backend:', endpoints);
+      
+      if (!endpoints || endpoints.length === 0) {
+        console.warn('No API endpoints returned from backend, using default');
+        setApiEndpoints([{
+          id: 0,
+          route: '默认端点',
+          url: station.api_url,
+          description: '当前配置的端点',
+          color: 'blue'
+        }]);
+        return;
+      }
+      
+      // 去重处理：基于URL去重，保留第一个出现的端点
+      const uniqueEndpoints = endpoints.filter((endpoint, index, self) => 
+        index === self.findIndex(e => e.url === endpoint.url)
+      );
+      
+      console.debug('Unique API endpoints after deduplication:', uniqueEndpoints);
+      setApiEndpoints(uniqueEndpoints);
     } catch (error) {
       console.error('Failed to load API endpoints:', error);
       // 使用默认端点
@@ -153,7 +189,20 @@ const RelayStationConfigDialog: React.FC<RelayStationConfigDialogProps> = ({
         const tokenResponse = await api.listStationTokens(station.id, 1, 50);
         setAvailableTokens(tokenResponse.items);
         
-        // 如果有可用令牌且当前没有选择令牌，选择第一个启用的令牌
+        // 如果有预选择的令牌，优先使用它
+        if (preselectedToken && tokenResponse.items.length > 0) {
+          const foundToken = tokenResponse.items.find(t => t.id === preselectedToken.id);
+          if (foundToken) {
+            setSelectedToken(foundToken.id);
+            setFormData(prev => ({
+              ...prev,
+              token: `sk-${foundToken.token}`
+            }));
+            return;
+          }
+        }
+        
+        // 如果没有预选择令牌，且当前没有选择令牌，选择第一个启用的令牌
         if (tokenResponse.items.length > 0 && !formData.token) {
           const enabledToken = tokenResponse.items.find(t => t.enabled) || tokenResponse.items[0];
           setSelectedToken(enabledToken.id);
@@ -323,7 +372,7 @@ const RelayStationConfigDialog: React.FC<RelayStationConfigDialogProps> = ({
                         默认端点 ({station.api_url})
                       </SelectItem>
                       {apiEndpoints.map((endpoint) => (
-                        <SelectItem key={endpoint.id} value={endpoint.url}>
+                        <SelectItem key={endpoint.url} value={endpoint.url}>
                           <div className="flex items-center gap-2">
                             <div className={`w-2 h-2 rounded-full bg-${endpoint.color}-500`} />
                             <span className="font-medium">{endpoint.route}</span>

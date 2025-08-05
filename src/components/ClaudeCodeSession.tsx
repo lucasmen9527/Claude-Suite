@@ -108,6 +108,11 @@ export const ClaudeCodeSession: React.FC<ClaudeCodeSessionProps> = ({
   // Add collapsed state for queued prompts
   const [queuedPromptsCollapsed, setQueuedPromptsCollapsed] = useState(false);
   
+  // Auto-scroll state
+  const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
+  const [isUserScrolling, setIsUserScrolling] = useState(false);
+  const [autoScrollDisabledTime, setAutoScrollDisabledTime] = useState<number | null>(null);
+  
   const parentRef = useRef<HTMLDivElement>(null);
   const unlistenRefs = useRef<UnlistenFn[]>([]);
   const hasActiveSessionRef = useRef(false);
@@ -115,6 +120,8 @@ export const ClaudeCodeSession: React.FC<ClaudeCodeSessionProps> = ({
   const queuedPromptsRef = useRef<Array<{ id: string; prompt: string; model: "sonnet" | "opus" }>>([]);
   const isMountedRef = useRef(true);
   const isListeningRef = useRef(false);
+  const lastUserInteractionTime = useRef(Date.now());
+  const AUTO_SCROLL_TOLERANCE_TIME = 200; // 2秒容忍时间
 
   // Keep ref in sync with state
   useEffect(() => {
@@ -247,7 +254,7 @@ export const ClaudeCodeSession: React.FC<ClaudeCodeSessionProps> = ({
 
   // Auto-scroll to show the last message with proper spacing (using existing paddingBottom)
   useEffect(() => {
-    if (displayableMessages.length > 0) {
+    if (displayableMessages.length > 0 && isAutoScrollEnabled && !isUserScrolling) {
       // Add a small delay to ensure DOM is updated
       const timeoutId = setTimeout(() => {
         // Scroll to bottom of container naturally - paddingBottom will provide the spacing
@@ -262,11 +269,11 @@ export const ClaudeCodeSession: React.FC<ClaudeCodeSessionProps> = ({
       
       return () => clearTimeout(timeoutId);
     }
-  }, [displayableMessages.length, messages]);
+  }, [displayableMessages.length, messages, isAutoScrollEnabled, isUserScrolling]);
 
   // Additional auto-scroll for streaming content - maintain bottom position during streaming
   useEffect(() => {
-    if (isLoading && displayableMessages.length > 0) {
+    if (isLoading && displayableMessages.length > 0 && isAutoScrollEnabled && !isUserScrolling) {
       const scrollToBottom = () => {
         if (parentRef.current) {
           const scrollElement = parentRef.current;
@@ -283,7 +290,7 @@ export const ClaudeCodeSession: React.FC<ClaudeCodeSessionProps> = ({
       
       return () => clearInterval(intervalId);
     }
-  }, [isLoading, displayableMessages.length]);
+  }, [isLoading, displayableMessages.length, isAutoScrollEnabled, isUserScrolling]);
 
   // Calculate total tokens from messages
   useEffect(() => {
@@ -917,10 +924,115 @@ export const ClaudeCodeSession: React.FC<ClaudeCodeSessionProps> = ({
     };
   }, [effectiveSession, projectPath]);
 
+  // Handle user input to re-enable auto-scroll
+  const handleUserInput = () => {
+    if (!isAutoScrollEnabled) {
+      // 检查是否在容忍时间内
+      const now = Date.now();
+      const withinToleranceTime = autoScrollDisabledTime && (now - autoScrollDisabledTime) < AUTO_SCROLL_TOLERANCE_TIME;
+      
+      if (!withinToleranceTime) {
+        // 超过容忍时间，可以重新启用自动滚动
+        setIsAutoScrollEnabled(true);
+        setAutoScrollDisabledTime(null);
+      }
+    }
+  };
+
+  // Handle user interaction with scroll area
+  const handleUserScrollInteraction = (e: React.WheelEvent<HTMLDivElement>) => {
+    const scrollElement = e.currentTarget;
+    const currentScrollTop = scrollElement.scrollTop;
+    const scrollHeight = scrollElement.scrollHeight;
+    const clientHeight = scrollElement.clientHeight;
+    
+    // Check if user is at the bottom
+    const isAtBottom = Math.abs((scrollHeight - clientHeight) - currentScrollTop) < 10;
+    
+    // Mark user as actively scrolling
+    setIsUserScrolling(true);
+    
+    // Clear the user scrolling flag after a short delay
+    setTimeout(() => {
+      setIsUserScrolling(false);
+    }, 150);
+    
+    // Only disable auto-scroll if user is scrolling up or if they're not at the bottom
+    // Don't disable if user is at bottom and scrolling down (trying to stay at bottom)
+    if (!isAtBottom || e.deltaY < 0) {
+      lastUserInteractionTime.current = Date.now();
+      if (isAutoScrollEnabled) {
+        setIsAutoScrollEnabled(false);
+        // 设置禁用自动滚动的时间戳，用于容忍时间检查
+        setAutoScrollDisabledTime(Date.now());
+      }
+    }
+  };
+
+  // Handle touch/mouse interactions (always disable auto-scroll)
+  const handleUserTouchInteraction = () => {
+    setIsUserScrolling(true);
+    
+    // Clear the user scrolling flag after a short delay
+    setTimeout(() => {
+      setIsUserScrolling(false);
+    }, 150);
+    
+    lastUserInteractionTime.current = Date.now();
+    if (isAutoScrollEnabled) {
+      setIsAutoScrollEnabled(false);
+      // 设置禁用自动滚动的时间戳，用于容忍时间检查
+      setAutoScrollDisabledTime(Date.now());
+    }
+  };
+
+  // Handle scroll events to detect when user scrolls to bottom
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const scrollElement = e.currentTarget;
+    const currentScrollTop = scrollElement.scrollTop;
+    const scrollHeight = scrollElement.scrollHeight;
+    const clientHeight = scrollElement.clientHeight;
+    
+    // Check if user has scrolled to the bottom (with 10px threshold)
+    const isAtBottom = Math.abs((scrollHeight - clientHeight) - currentScrollTop) < 10;
+    
+    if (isAtBottom && !isAutoScrollEnabled) {
+      // 检查是否在容忍时间内
+      const now = Date.now();
+      const withinToleranceTime = autoScrollDisabledTime && (now - autoScrollDisabledTime) < AUTO_SCROLL_TOLERANCE_TIME;
+      
+      if (!withinToleranceTime) {
+        // 超过容忍时间，可以重新启用自动滚动
+        setIsAutoScrollEnabled(true);
+        setAutoScrollDisabledTime(null);
+      }
+    }
+  };
+
+  // Check if enough time has passed since last user interaction to re-enable auto-scroll
+  useEffect(() => {
+    if (!isAutoScrollEnabled) {
+      const checkReEnableAutoScroll = () => {
+        const timeSinceLastInteraction = Date.now() - lastUserInteractionTime.current;
+        // Re-enable auto-scroll after 10 seconds of no user interaction
+        if (timeSinceLastInteraction > 10000) {
+          setIsAutoScrollEnabled(true);
+        }
+      };
+
+      const intervalId = setInterval(checkReEnableAutoScroll, 1000);
+      return () => clearInterval(intervalId);
+    }
+  }, [isAutoScrollEnabled]);
+
   const messagesList = (
     <div
       ref={parentRef}
       className="flex-1 overflow-y-auto relative"
+      onWheel={handleUserScrollInteraction}
+      onTouchStart={handleUserTouchInteraction}
+      onMouseDown={handleUserTouchInteraction}
+      onScroll={handleScroll}
       style={{
         paddingBottom: 'calc(100px + env(safe-area-inset-bottom))', // 进一步减少底部空间，让卡片紧贴对话框上方
         paddingTop: '20px',
@@ -1341,7 +1453,9 @@ export const ClaudeCodeSession: React.FC<ClaudeCodeSessionProps> = ({
                   onClick={() => {
                     // Use virtualizer to scroll to the last item
                     if (displayableMessages.length > 0) {
-                      // Scroll to bottom of the container
+                      // Re-enable auto-scroll and scroll to bottom (忽略容忍时间)
+                      setIsAutoScrollEnabled(true);
+                      setAutoScrollDisabledTime(null);
                       const scrollElement = parentRef.current;
                       if (scrollElement) {
                         scrollElement.scrollTo({
@@ -1371,6 +1485,8 @@ export const ClaudeCodeSession: React.FC<ClaudeCodeSessionProps> = ({
               isLoading={isLoading}
               disabled={!projectPath}
               projectPath={projectPath}
+              isAutoScrollEnabled={isAutoScrollEnabled}
+              onUserInput={handleUserInput}
             />
           </div>
 
@@ -1383,7 +1499,7 @@ export const ClaudeCodeSession: React.FC<ClaudeCodeSessionProps> = ({
               }}
             >
               <div className="max-w-5xl mx-auto">
-                <div className="flex justify-end px-4 pb-2">
+                <div className="flex justify-start px-4 pb-2">
                   <motion.div
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}

@@ -895,6 +895,8 @@
     "stop": "停止",
     "keyboardShortcuts": "按 Enter 发送，Shift+Enter 换行，或粘贴图片",
     "keyboardShortcutsWithFiles": "按 Enter 发送，Shift+Enter 换行，@ 提及文件，/ 输入命令，或粘贴图片",
+    "autoScrollEnabled": "自动滚动",
+    "autoScrollDisabled": "已停止自动滚动",
     "saveClipboardImageFailed": "保存剪贴板图片失败，请重试",
     "pasteImageFailed": "粘贴图片失败，请重试",
     "letClaudeDecide": "让 Claude 自己决定",

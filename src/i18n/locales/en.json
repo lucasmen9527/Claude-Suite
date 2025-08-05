@@ -942,6 +942,8 @@
     "stop": "Stop",
     "keyboardShortcuts": "Press Enter to send, Shift+Enter for new line, or paste images",
     "keyboardShortcutsWithFiles": "Press Enter to send, Shift+Enter for new line, @ to mention files, / for commands, or paste images",
+    "autoScrollEnabled": "Auto-scroll",
+    "autoScrollDisabled": "Auto-scroll paused",
     "saveClipboardImageFailed": "Failed to save clipboard image, please try again",
     "pasteImageFailed": "Failed to paste image, please try again",
     "letClaudeDecide": "Let Claude decide",

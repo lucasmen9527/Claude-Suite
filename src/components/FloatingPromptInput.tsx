@@ -9,7 +9,8 @@ import {
   Zap,
   Square,
   Brain,
-  X
+  X,
+  ArrowDown
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,14 @@ interface FloatingPromptInputProps {
    * Callback when cancel is clicked (only during loading)
    */
   onCancel?: () => void;
+  /**
+   * Whether auto-scroll is enabled
+   */
+  isAutoScrollEnabled?: boolean;
+  /**
+   * Callback when user starts typing to re-enable auto-scroll
+   */
+  onUserInput?: () => void;
 }
 
 interface ImageAttachment {
@@ -165,6 +174,8 @@ const FloatingPromptInputInner = (
     projectPath,
     className,
     onCancel,
+    isAutoScrollEnabled = true,
+    onUserInput,
   }: FloatingPromptInputProps,
   ref: React.Ref<FloatingPromptInputRef>,
 ) => {
@@ -468,6 +479,11 @@ const FloatingPromptInputInner = (
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newValue = e.target.value;
     const newCursorPosition = e.target.selectionStart || 0;
+
+    // Call onUserInput when user starts typing to re-enable auto-scroll
+    if (newValue.length > prompt.length && onUserInput) {
+      onUserInput();
+    }
 
     // Check if / was just typed at the beginning of input or after whitespace
     if (newValue.length > prompt.length && newValue[newCursorPosition - 1] === '/') {
@@ -1230,8 +1246,26 @@ const FloatingPromptInputInner = (
               </Button>
             </div>
 
-            <div className="mt-2 text-xs text-muted-foreground">
-              {projectPath?.trim() ? t('common.keyboardShortcutsWithFiles') : t('common.keyboardShortcuts')}
+            <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+              <span>
+                {projectPath?.trim() ? t('common.keyboardShortcutsWithFiles') : t('common.keyboardShortcuts')}
+              </span>
+              
+              {/* Auto-scroll indicator */}
+              {isAutoScrollEnabled !== undefined && (
+                <div className="flex items-center gap-1">
+                  <ArrowDown className={cn(
+                    "h-3 w-3 transition-colors",
+                    isAutoScrollEnabled ? "text-green-500" : "text-muted-foreground/50"
+                  )} />
+                  <span className={cn(
+                    "transition-colors",
+                    isAutoScrollEnabled ? "text-green-500" : "text-muted-foreground/50"
+                  )}>
+                    {isAutoScrollEnabled ? t('common.autoScrollEnabled') : t('common.autoScrollDisabled')}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>

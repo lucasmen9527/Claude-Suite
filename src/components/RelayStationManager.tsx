@@ -880,6 +880,7 @@ const StationDetailView: React.FC<DetailViewProps> = ({ station, onBack, onStati
     loadBasicData();
     loadCurrentProviderConfig();
     loadConfigUsageStatus();
+    loadStationApiEndpoints();
   }, [station.id]);
 
   // 定期检查配置变化
@@ -921,6 +922,41 @@ const StationDetailView: React.FC<DetailViewProps> = ({ station, onBack, onStati
     }
   };
 
+  // 存储API端点列表
+  const [stationApiEndpoints, setStationApiEndpoints] = useState<any[]>([]);
+  
+  // 存储当前选中的令牌（用于配置对话框）
+  const [selectedTokenForConfig, setSelectedTokenForConfig] = useState<RelayStationToken | null>(null);
+
+  // 加载中转站的API端点列表
+  const loadStationApiEndpoints = async () => {
+    try {
+      const endpoints = await api.loadStationApiEndpoints(station.id);
+      setStationApiEndpoints(endpoints);
+    } catch (error) {
+      console.error('Failed to load station API endpoints:', error);
+      setStationApiEndpoints([]);
+    }
+  };
+
+  // 检查URL是否属于同一个中转站的不同端点
+  const isUrlFromSameStation = (url1: string, url2: string): boolean => {
+    // 直接匹配
+    if (url1 === url2) return true;
+    
+    // 检查是否都在API端点列表中
+    const allEndpoints = [
+      station.api_url, // 主站点URL
+      ...stationApiEndpoints.map(endpoint => endpoint.url) // 所有API端点
+    ];
+    
+    const url1InEndpoints = allEndpoints.includes(url1);
+    const url2InEndpoints = allEndpoints.includes(url2);
+    
+    // 如果两个URL都在同一个中转站的端点列表中，认为是同一个中转站
+    return url1InEndpoints && url2InEndpoints;
+  };
+
   // 检查令牌是否被应用
   const isTokenApplied = (token: RelayStationToken): boolean => {
     // 首先检查配置使用状态记录是否与当前配置匹配
@@ -928,8 +964,9 @@ const StationDetailView: React.FC<DetailViewProps> = ({ station, onBack, onStati
       status.station_id === station.id && 
       status.is_active &&
       status.token === `sk-${token.token}` &&
-      status.base_url === currentProviderConfig?.anthropic_base_url &&
-      currentProviderConfig?.anthropic_auth_token === `sk-${token.token}`
+      currentProviderConfig?.anthropic_auth_token === `sk-${token.token}` &&
+      currentProviderConfig?.anthropic_base_url &&
+      isUrlFromSameStation(status.base_url, currentProviderConfig.anthropic_base_url)
     );
 
     if (usageStatus) {
@@ -938,7 +975,7 @@ const StationDetailView: React.FC<DetailViewProps> = ({ station, onBack, onStati
 
     // 如果没有使用状态记录，回退到配置比较
     if (!currentProviderConfig) return false;
-    const baseUrlMatches = currentProviderConfig.anthropic_base_url === station.api_url;
+    const baseUrlMatches = isUrlFromSameStation(currentProviderConfig.anthropic_base_url || '', station.api_url);
     const authTokenMatches = currentProviderConfig.anthropic_auth_token === `sk-${token.token}`;
     
     return baseUrlMatches && authTokenMatches;
@@ -952,7 +989,8 @@ const StationDetailView: React.FC<DetailViewProps> = ({ station, onBack, onStati
     const usageStatus = configUsageStatus.find(status => 
       status.station_id === station.id && 
       status.is_active &&
-      status.base_url === currentProviderConfig?.anthropic_base_url &&
+      currentProviderConfig?.anthropic_base_url &&
+      isUrlFromSameStation(status.base_url, currentProviderConfig.anthropic_base_url) &&
       status.token === currentProviderConfig?.anthropic_auth_token
     );
     
@@ -962,7 +1000,7 @@ const StationDetailView: React.FC<DetailViewProps> = ({ station, onBack, onStati
     
     // 如果没有使用状态记录，回退到配置比较
     if (!currentProviderConfig) return false;
-    const baseUrlMatches = currentProviderConfig.anthropic_base_url === station.api_url;
+    const baseUrlMatches = isUrlFromSameStation(currentProviderConfig.anthropic_base_url || '', station.api_url);
     const authTokenMatches = currentProviderConfig.anthropic_auth_token === station.system_token;
     
     return baseUrlMatches && authTokenMatches;
@@ -1427,8 +1465,9 @@ const StationDetailView: React.FC<DetailViewProps> = ({ station, onBack, onStati
     setShowConfigDialog(true);
   };
 
-  const handleApplyToken = async () => {
-    // 显示配置对话框而不是直接应用
+  const handleApplyToken = async (token: RelayStationToken) => {
+    // 设置选中的令牌并显示配置对话框
+    setSelectedTokenForConfig(token);
     setShowConfigDialog(true);
   };
 
@@ -1821,7 +1860,7 @@ const StationDetailView: React.FC<DetailViewProps> = ({ station, onBack, onStati
                                 size="sm"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  handleApplyToken();
+                                  handleApplyToken(token);
                                 }}
                                 title={isTokenApplied(token) ? '重新配置此令牌' : '应用此令牌配置'}
                                 className={isTokenApplied(token) ? "bg-green-600 hover:bg-green-700 text-white" : ""}
@@ -2520,6 +2559,7 @@ const StationDetailView: React.FC<DetailViewProps> = ({ station, onBack, onStati
         open={showConfigDialog}
         onOpenChange={setShowConfigDialog}
         station={station}
+        selectedToken={selectedTokenForConfig}
         onConfigApplied={handleConfigApplied}
       />
       
@@ -3140,6 +3180,7 @@ const RelayStationManager: React.FC<RelayStationManagerProps> = ({ onBack }) => 
           open={showConfigDialog}
           onOpenChange={setShowConfigDialog}
           station={configStation}
+          selectedToken={null}
           onConfigApplied={handleConfigAppliedFromList}
         />
       )}

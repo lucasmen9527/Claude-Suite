@@ -351,7 +351,7 @@ const StreamMessageComponent: React.FC<StreamMessageProps> = ({ message, classNa
                 })}
                 
                 {msg.usage && (
-                  <div className="text-xs text-muted-foreground mt-2">
+                  <div className="text-xs text-muted-foreground mt-2 text-left pr-20">
                     {t('common.tokensLabel')} {msg.usage.input_tokens} in, {msg.usage.output_tokens} out
                   </div>
                 )}

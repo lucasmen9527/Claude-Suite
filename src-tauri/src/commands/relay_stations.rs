@@ -1353,12 +1353,26 @@ pub async fn load_station_api_endpoints(
             Ok(info) => {
                 // Extract API endpoints from metadata if available
                 if let Some(metadata) = info.metadata {
+                    // Try to get api_info from the response data
+                    if let Some(response_data) = metadata.get("response") {
+                        if let Some(api_info) = response_data.get("api_info") {
+                            if let Ok(endpoints) = serde_json::from_value::<Vec<ApiEndpoint>>(api_info.clone()) {
+                                println!("Successfully parsed {} API endpoints from api_info", endpoints.len());
+                                return Ok(endpoints);
+                            }
+                        }
+                    }
+                    
+                    // Also try direct api_info for backward compatibility
                     if let Some(api_info) = metadata.get("api_info") {
                         if let Ok(endpoints) = serde_json::from_value::<Vec<ApiEndpoint>>(api_info.clone()) {
+                            println!("Successfully parsed {} API endpoints from direct api_info", endpoints.len());
                             return Ok(endpoints);
                         }
                     }
                 }
+                
+                println!("No api_info found in metadata, using fallback default endpoint");
                 
                 // Fallback: create default endpoint from station URL
                 Ok(vec![ApiEndpoint {
