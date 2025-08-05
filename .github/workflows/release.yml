@@ -87,7 +87,7 @@ jobs:
           - 提交: ${{ github.sha }}
           
           ${{ github.event.inputs.include_changelog && format('---
-          Full Changelog: https://github.com/{0}/compare/v{1}...HEAD', github.repository, github.event.inputs.version) || '' }}
+          Full Changelog: https://github.com/{0}/compare/{1}...HEAD', github.repository, github.event.inputs.version) || '' }}
         releaseDraft: false
         prerelease: ${{ github.event.inputs.prerelease }}
         tauriScript: npm run tauri
