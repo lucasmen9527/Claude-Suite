@@ -334,6 +334,8 @@
     "serverUrl": "输入服务器地址"
   },
   "common": {
+    "cancel":"取消",
+    "currentPath":"当前路径",
     "environmentVariables":"环境变量",
     "permissionRules":"权限规则",
     "allowRules":"允许的规则",
