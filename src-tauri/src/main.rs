@@ -3,6 +3,7 @@
 
 mod checkpoint;
 mod claude_binary;
+mod claude_binary_unix;
 mod commands;
 mod process;
 mod i18n;

@@ -18,7 +18,14 @@ use tokio::process::Command;
 /// Finds the full path to the claude binary
 /// This is necessary because Windows apps may have a limited PATH environment
 fn find_claude_binary(app_handle: &AppHandle) -> Result<String, String> {
-    crate::claude_binary::find_claude_binary(app_handle)
+    #[cfg(target_os = "windows")]
+    {
+        crate::claude_binary::find_claude_binary(app_handle)
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        crate::claude_binary_unix::find_claude_binary(app_handle)
+    }
 }
 
 /// Represents a CC Agent stored in the database
@@ -1911,7 +1918,10 @@ pub async fn set_claude_binary_path(db: State<'_, AgentDb>, path: String) -> Res
 pub async fn list_claude_installations(
     app: AppHandle,
 ) -> Result<Vec<crate::claude_binary::ClaudeInstallation>, String> {
+    #[cfg(target_os = "windows")]
     let mut installations = crate::claude_binary::discover_claude_installations();
+    #[cfg(not(target_os = "windows"))]
+    let mut installations = crate::claude_binary_unix::discover_claude_installations();
 
     if installations.is_empty() {
         return Err("No Claude Code installations found on the system".to_string());
@@ -1919,6 +1929,7 @@ pub async fn list_claude_installations(
 
     // For bundled installations, try to get the actual version (but don't fail if it doesn't work)
     for installation in &mut installations {
+        #[cfg(target_os = "windows")]
         if installation.installation_type == crate::claude_binary::InstallationType::Bundled {
             // Try to get the version by executing the sidecar, but with robust error handling
             log::info!("Attempting to get version for bundled installation: {}", installation.path);
@@ -2030,7 +2041,10 @@ async fn get_bundled_version(app: &AppHandle) -> Result<Option<String>, String> 
 /// This ensures commands like Claude can find Node.js and other dependencies
 fn create_command_with_env(program: &str) -> Command {
     // Convert std::process::Command to tokio::process::Command
+    #[cfg(target_os = "windows")]
     let _std_cmd = crate::claude_binary::create_command_with_env(program);
+    #[cfg(not(target_os = "windows"))]
+    let _std_cmd = crate::claude_binary_unix::create_command_with_env(program);
 
     // Create a new tokio Command from the program path
     let mut tokio_cmd = Command::new(program);
