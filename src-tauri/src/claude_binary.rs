@@ -82,7 +82,7 @@ pub fn find_claude_binary(app_handle: &tauri::AppHandle) -> Result<String, Strin
 
     if installations.is_empty() {
         error!("Could not find claude CLI in any Windows location");
-        return Err("Claude CLI not found. Please install Claude CLI using 'npm install -g @anthropic/claude' or ensure it's in your PATH".to_string());
+        return Err("Claude CLI not found. Please install Claude CLI using 'npm install -g @anthropic-ai/claude-code' or ensure it's in your PATH".to_string());
     }
 
     // Log all found installations

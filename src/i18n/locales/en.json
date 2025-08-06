@@ -232,7 +232,7 @@
       "lastChecked": "Last checked",
       "errorTitle": "Connection Error",
       "helpTitle": "Need help?",
-      "helpText": "Install Claude CLI using: npm install -g @anthropic/claude"
+      "helpText": "Install Claude CLI using: npm install -g @anthropic-ai/claude-code"
     }
   },
   "timeline": {

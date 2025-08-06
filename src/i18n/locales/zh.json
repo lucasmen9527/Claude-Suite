@@ -231,7 +231,7 @@
       "lastChecked": "最后检查",
       "errorTitle": "连接错误",
       "helpTitle": "需要帮助？",
-      "helpText": "使用以下命令安装 Claude CLI：npm install -g @anthropic/claude"
+      "helpText": "使用以下命令安装 Claude CLI：npm install -g @anthropic-ai/claude-code"
     }
   },
   "timeline": {

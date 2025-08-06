@@ -95,7 +95,7 @@ export function ClaudeBinaryDialog({ open, onOpenChange, onSuccess, onError }: C
                 <Terminal className="w-4 h-4 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground">
                   <span className="font-medium">Tip:</span> {t('common.installTip')}{" "}
-                  <code className="px-1 py-0.5 bg-black/10 dark:bg-white/10 rounded">npm install -g @claude</code>
+                  <code className="px-1 py-0.5 bg-black/10 dark:bg-white/10 rounded">npm install -g @anthropic-ai/claude-code</code>
                 </p>
               </div>
             )}
