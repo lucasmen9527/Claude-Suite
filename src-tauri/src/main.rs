@@ -2,8 +2,11 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod checkpoint;
+#[cfg(target_os = "windows")]
 mod claude_binary;
+#[cfg(not(target_os = "windows"))]
 mod claude_binary_unix;
+mod claude_binary_common;
 mod commands;
 mod process;
 mod i18n;

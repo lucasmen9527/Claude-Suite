@@ -11,27 +11,13 @@ use tauri::AppHandle;
 /// Helper function to create a std::process::Command with proper environment variables
 /// This ensures commands like Claude can find Node.js and other dependencies
 fn create_command_with_env(program: &str) -> Command {
-    #[cfg(target_os = "windows")]
-    {
-        crate::claude_binary::create_command_with_env(program)
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        crate::claude_binary_unix::create_command_with_env(program)
-    }
+    crate::claude_binary_common::create_command_with_env(program)
 }
 
 /// Finds the full path to the claude binary
 /// This is necessary because Windows apps may have limited PATH environment
 fn find_claude_binary(app_handle: &AppHandle) -> Result<String> {
-    #[cfg(target_os = "windows")]
-    {
-        crate::claude_binary::find_claude_binary(app_handle).map_err(|e| anyhow::anyhow!(e))
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        crate::claude_binary_unix::find_claude_binary(app_handle).map_err(|e| anyhow::anyhow!(e))
-    }
+    crate::claude_binary_common::find_claude_binary(app_handle).map_err(|e| anyhow::anyhow!(e))
 }
 
 /// Represents an MCP server configuration

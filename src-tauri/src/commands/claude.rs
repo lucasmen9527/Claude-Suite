@@ -131,14 +131,7 @@ pub struct FileEntry {
 /// Finds the full path to the claude binary
 /// This is necessary because Windows apps may have a limited PATH environment
 fn find_claude_binary(app_handle: &AppHandle) -> Result<String, String> {
-    #[cfg(target_os = "windows")]
-    {
-        crate::claude_binary::find_claude_binary(app_handle)
-    }
-    #[cfg(not(target_os = "windows"))]
-    {
-        crate::claude_binary_unix::find_claude_binary(app_handle)
-    }
+    crate::claude_binary_common::find_claude_binary(app_handle)
 }
 
 /// Gets the path to the ~/.claude directory
@@ -281,10 +274,7 @@ fn escape_prompt_for_cli(prompt: &str) -> String {
 /// This ensures commands like Claude can find Node.js and other dependencies
 fn create_command_with_env(program: &str) -> Command {
     // Convert std::process::Command to tokio::process::Command
-    #[cfg(target_os = "windows")]
-    let _std_cmd = crate::claude_binary::create_command_with_env(program);
-    #[cfg(not(target_os = "windows"))]
-    let _std_cmd = crate::claude_binary_unix::create_command_with_env(program);
+    let _std_cmd = crate::claude_binary_common::create_command_with_env(program);
 
     // Create a new tokio Command from the program path
     let mut tokio_cmd = Command::new(program);

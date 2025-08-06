@@ -2,7 +2,11 @@
 
 // Declare modules
 pub mod checkpoint;
+#[cfg(target_os = "windows")]
 pub mod claude_binary;
+#[cfg(not(target_os = "windows"))]
+pub mod claude_binary_unix;
+pub mod claude_binary_common;
 pub mod commands;
 pub mod process;
 pub mod i18n;
