@@ -426,6 +426,8 @@
     "includeCoAuthoredByDescription": "在 git 提交和拉取请求中添加 Claude 署名",
     "verboseOutput": "详细输出",
     "verboseOutputDescription": "显示完整的 bash 和命令输出",
+    "showTokenCounter": "显示令牌计数器",
+    "showTokenCounterDescription": "在会话中显示令牌使用情况统计",
     "chatRetentionDays": "聊天记录保留天数",
     "claudeBinaryPathChanged": "Claude 二进制文件路径已更改。请记住保存您的设置。",
     "pleaseEnterValidPath": "请输入有效路径",

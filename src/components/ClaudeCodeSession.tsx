@@ -108,6 +108,9 @@ export const ClaudeCodeSession: React.FC<ClaudeCodeSessionProps> = ({
   // Add collapsed state for queued prompts
   const [queuedPromptsCollapsed, setQueuedPromptsCollapsed] = useState(false);
   
+  // Token Counter settings state
+  const [showTokenCounter, setShowTokenCounter] = useState(true);
+  
   // Auto-scroll state
   const [isAutoScrollEnabled, setIsAutoScrollEnabled] = useState(true);
   const [isUserScrolling, setIsUserScrolling] = useState(false);
@@ -127,6 +130,26 @@ export const ClaudeCodeSession: React.FC<ClaudeCodeSessionProps> = ({
   useEffect(() => {
     queuedPromptsRef.current = queuedPrompts;
   }, [queuedPrompts]);
+
+  // Load Token Counter setting from localStorage
+  useEffect(() => {
+    const loadTokenCounterSetting = () => {
+      const savedSetting = localStorage.getItem('showTokenCounter');
+      setShowTokenCounter(savedSetting !== null ? savedSetting === 'true' : true); // Default to true
+    };
+
+    loadTokenCounterSetting();
+
+    // Listen for localStorage changes
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'showTokenCounter') {
+        setShowTokenCounter(e.newValue !== null ? e.newValue === 'true' : true);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, []);
 
   // Get effective session info (from prop or extracted) - use useMemo to ensure it updates
   const effectiveSession = useMemo(() => {
@@ -1491,7 +1514,7 @@ export const ClaudeCodeSession: React.FC<ClaudeCodeSessionProps> = ({
           </div>
 
           {/* Token Counter - positioned above the input area */}
-          {totalTokens > 0 && (
+          {totalTokens > 0 && showTokenCounter && (
             <div
               className="fixed left-0 right-0 z-30 pointer-events-none"
               style={{

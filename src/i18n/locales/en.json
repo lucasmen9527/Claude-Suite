@@ -466,6 +466,8 @@
     "includeCoAuthoredByDescription": "Add Claude signature to git commits and pull requests",
     "verboseOutput": "Verbose Output",
     "verboseOutputDescription": "Show full bash and command output",
+    "showTokenCounter": "Show Token Counter",
+    "showTokenCounterDescription": "Display token usage statistics in sessions",
     "chatRetentionDays": "Chat Retention Days",
     "claudeBinaryPathChanged": "Claude binary path has been changed. Remember to save your settings.",
     "pleaseEnterValidPath": "Please enter a valid path",

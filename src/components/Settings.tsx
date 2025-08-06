@@ -93,6 +93,10 @@ export const Settings: React.FC<SettingsProps> = ({
   // Environment variables state
   const [envVars, setEnvVars] = useState<EnvironmentVariable[]>([]);
   
+  // LocalStorage-based settings
+  const [showTokenCounter, setShowTokenCounter] = useState(true);
+  const [showSystemInitialization, setShowSystemInitialization] = useState(true);
+  
   // Hooks state
   const [userHooksChanged, setUserHooksChanged] = useState(false);
   const getUserHooks = React.useRef<(() => any) | null>(null);
@@ -255,6 +259,13 @@ export const Settings: React.FC<SettingsProps> = ({
       
       setSettings(loadedSettings);
 
+      // Load localStorage-based settings
+      const savedShowTokenCounter = localStorage.getItem('showTokenCounter');
+      const savedShowSystemInit = localStorage.getItem('showSystemInitialization');
+      
+      setShowTokenCounter(savedShowTokenCounter !== null ? savedShowTokenCounter === 'true' : true);
+      setShowSystemInitialization(savedShowSystemInit !== null ? savedShowSystemInit === 'true' : true);
+
       // Parse permissions
       if (loadedSettings.permissions && typeof loadedSettings.permissions === 'object') {
         if (Array.isArray(loadedSettings.permissions.allow)) {
@@ -353,6 +364,18 @@ export const Settings: React.FC<SettingsProps> = ({
    */
   const updateSetting = (key: string, value: any) => {
     setSettings(prev => ({ ...prev, [key]: value }));
+  };
+
+  /**
+   * Updates a localStorage-based setting
+   */
+  const updateLocalStorageSetting = (key: string, value: boolean) => {
+    localStorage.setItem(key, value.toString());
+    if (key === 'showTokenCounter') {
+      setShowTokenCounter(value);
+    } else if (key === 'showSystemInitialization') {
+      setShowSystemInitialization(value);
+    }
   };
 
   /**
@@ -568,8 +591,8 @@ export const Settings: React.FC<SettingsProps> = ({
                       </div>
                       <Switch
                         id="showSystemInit"
-                        checked={settings?.showSystemInitialization !== false}
-                        onCheckedChange={(checked) => updateSetting("showSystemInitialization", checked)}
+                        checked={showSystemInitialization}
+                        onCheckedChange={(checked) => updateLocalStorageSetting("showSystemInitialization", checked)}
                       />
                     </div>
 
@@ -600,6 +623,21 @@ export const Settings: React.FC<SettingsProps> = ({
                         id="verbose"
                         checked={settings?.verbose === true}
                         onCheckedChange={(checked) => updateSetting("verbose", checked)}
+                      />
+                    </div>
+
+                    {/* Show Token Counter */}
+                    <div className="flex items-center justify-between">
+                      <div className="space-y-0.5 flex-1">
+                        <Label htmlFor="showTokenCounter">{t('common.showTokenCounter')}</Label>
+                        <p className="text-xs text-muted-foreground">
+                          {t('common.showTokenCounterDescription')}
+                        </p>
+                      </div>
+                      <Switch
+                        id="showTokenCounter"
+                        checked={showTokenCounter}
+                        onCheckedChange={(checked) => updateLocalStorageSetting("showTokenCounter", checked)}
                       />
                     </div>
                     
