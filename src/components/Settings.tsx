@@ -1141,20 +1141,20 @@ export const Settings: React.FC<SettingsProps> = ({
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className={cn(
-                          "p-4 rounded-lg border",
+                          "p-4 rounded-lg border bg-card",
                           updateInfo.update_available 
-                            ? "dark:!bg-gray-900 dark:!border-black-400" 
-                            : "dark:!bg-gray-900 dark:!border-black-400"
+                            ? "border-green-200 bg-green-50" 
+                            : "border-blue-200 bg-blue-50"
                         )}
                       >
                         <div className="space-y-3">
                           <div className="flex items-start justify-between">
                             <div>
                               <p className={cn(
-                                "font-medium",
+                                "font-medium text-foreground",
                                 updateInfo.update_available 
-                                  ? "text-green-800 dark:!text-white dark:!text-opacity-100" 
-                                  : "text-blue-800 dark:!text-white dark:!text-opacity-100"
+                                  ? "text-green-800" 
+                                  : "text-blue-800"
                               )}
                               style={{ 
                                 color: 'var(--tw-prose-body, inherit)' 
@@ -1165,7 +1165,7 @@ export const Settings: React.FC<SettingsProps> = ({
                                   : t('common.upToDate')
                                 }
                               </p>
-                              <div className="text-sm text-muted-foreground dark:!text-gray-200 mt-1">
+                              <div className="text-sm text-muted-foreground mt-1">
                                 <p>{t('common.currentVersion')}: <span className="font-mono">{updateInfo.current_version}</span></p>
                                 <p>{t('common.latestVersion')}: <span className="font-mono">{updateInfo.latest_version}</span></p>
                               </div>

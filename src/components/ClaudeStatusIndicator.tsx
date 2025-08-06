@@ -199,15 +199,15 @@ export const ClaudeStatusIndicator: React.FC<ClaudeStatusIndicatorProps> = ({
   const getStatusColor = () => {
     switch (statusInfo.status) {
       case 'checking':
-        return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300';
+        return 'bg-blue-500/10 text-blue-600 border-blue-500/20';
       case 'connected':
-        return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300';
+        return 'bg-green-500/10 text-green-600 border-green-500/20';
       case 'disconnected':
-        return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300';
+        return 'bg-red-500/10 text-red-600 border-red-500/20';
       case 'error':
-        return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300';
+        return 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20';
       default:
-        return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300';
+        return 'bg-muted text-muted-foreground border-border';
     }
   };
 
@@ -378,7 +378,7 @@ export const ClaudeStatusIndicator: React.FC<ClaudeStatusIndicatorProps> = ({
             </div>
           }
           align="start"
-          className="w-80 p-4  dark:!bg-black dark:!border-gray-700 rounded-lg shadow-lg"
+          className="w-80 p-4 rounded-lg shadow-lg"
         />
       </TooltipProvider>
     </div>
