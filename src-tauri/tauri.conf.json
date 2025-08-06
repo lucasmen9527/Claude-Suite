@@ -50,7 +50,12 @@
     "externalBin": [],
     "copyright": "",
     "category": "DeveloperTool",
-    "shortDescription": "Professional GUI Toolkit for Claude CLI (Windows Only)",
-    "longDescription": "Claude Suite is a professional desktop application and comprehensive toolkit for Claude CLI, designed specifically for Windows users. Provides an intuitive interface for AI-powered development workflows, project management, and advanced Claude interactions."
+    "shortDescription": "Professional GUI Toolkit for Claude CLI",
+    "longDescription": "Claude Suite is a professional desktop application and comprehensive toolkit for Claude CLI. Provides an intuitive interface for AI-powered development workflows, project management, and advanced Claude interactions.",
+    "macOS": {
+      "entitlements": "entitlements.plist",
+      "providerShortName": null,
+      "signingIdentity": null
+    }
   }
 }
