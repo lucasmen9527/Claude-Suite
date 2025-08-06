@@ -136,7 +136,7 @@ export const Popover: React.FC<PopoverProps> = ({
           exit={{ opacity: 0, scale: 0.95, y: animationY.exit }}
           transition={{ duration: 0.15 }}
           className={cn(
-            "min-w-[200px] rounded-md border border-border bg-popover p-4 text-popover-foreground shadow-md",
+            "min-w-[200px] rounded-md border border-border bg-popover dark:!bg-gray-900 dark:!border-gray-700 p-4 text-popover-foreground dark:!text-gray-100 shadow-md",
             modal ? "absolute z-layer-status-modal" : cn("absolute z-50", sideClass, alignClass),
             modal && align === "center" && "-translate-x-1/2",
             modal && align === "end" && "-translate-x-full",

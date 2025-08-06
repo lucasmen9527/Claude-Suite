@@ -1105,20 +1105,29 @@ export const Settings: React.FC<SettingsProps> = ({
                         className={cn(
                           "p-4 rounded-lg border",
                           updateInfo.update_available 
-                            ? "bg-green-50 border-green-200 dark:bg-green-950/20 dark:border-green-800" 
-                            : "bg-blue-50 border-blue-200 dark:bg-blue-950/20 dark:border-blue-800"
+                            ? "dark:!bg-gray-900 dark:!border-black-400" 
+                            : "dark:!bg-gray-900 dark:!border-black-400"
                         )}
                       >
                         <div className="space-y-3">
                           <div className="flex items-start justify-between">
                             <div>
-                              <p className="font-medium">
+                              <p className={cn(
+                                "font-medium",
+                                updateInfo.update_available 
+                                  ? "text-green-800 dark:!text-white dark:!text-opacity-100" 
+                                  : "text-blue-800 dark:!text-white dark:!text-opacity-100"
+                              )}
+                              style={{ 
+                                color: 'var(--tw-prose-body, inherit)' 
+                              }}
+                              >
                                 {updateInfo.update_available 
                                   ? t('common.updateAvailable')
                                   : t('common.upToDate')
                                 }
                               </p>
-                              <div className="text-sm text-muted-foreground mt-1">
+                              <div className="text-sm text-muted-foreground dark:!text-gray-200 mt-1">
                                 <p>{t('common.currentVersion')}: <span className="font-mono">{updateInfo.current_version}</span></p>
                                 <p>{t('common.latestVersion')}: <span className="font-mono">{updateInfo.latest_version}</span></p>
                               </div>
@@ -1140,10 +1149,10 @@ export const Settings: React.FC<SettingsProps> = ({
                           
                           {updateInfo.release_notes && (
                             <div className="border-t pt-3">
-                              <Label className="text-xs font-medium text-muted-foreground mb-2 block">
+                              <Label className="text-xs font-medium text-muted-foreground dark:text-gray-300 mb-2 block">
                                 {t('common.releaseNotes')}
                               </Label>
-                              <div className="text-xs text-muted-foreground max-h-32 overflow-y-auto">
+                              <div className="text-xs text-muted-foreground dark:text-gray-300 max-h-32 overflow-y-auto">
                                 <pre className="whitespace-pre-wrap font-sans">
                                   {updateInfo.release_notes}
                                 </pre>
@@ -1159,10 +1168,10 @@ export const Settings: React.FC<SettingsProps> = ({
                   <div className="border-t pt-6">
                     <div className="text-center space-y-2">
                       <p className="text-sm font-medium">Claude Suite</p>
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground dark:text-gray-300">
                         {t('common.applicationDescription')}
                       </p>
-                      <div className="flex justify-center gap-4 text-xs text-muted-foreground">
+                      <div className="flex justify-center gap-4 text-xs text-muted-foreground dark:text-gray-300">
                         <span>Windows</span>
                         <span>•</span>
                         <span>Tauri + React</span>

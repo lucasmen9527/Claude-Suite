@@ -259,7 +259,7 @@ export const ClaudeStatusIndicator: React.FC<ClaudeStatusIndicatorProps> = ({
             </Button>
           }
           content={
-            <div className="space-y-3">
+            <div className="space-y-3 bg-background dark:!bg-gray-900 border dark:!border-gray-700 rounded-lg shadow-lg">
               {/* Header */}
               <div className="flex items-center justify-between">
                 <h4 className="font-semibold text-sm">{t('claude.status.title')}</h4>
@@ -378,7 +378,7 @@ export const ClaudeStatusIndicator: React.FC<ClaudeStatusIndicatorProps> = ({
             </div>
           }
           align="start"
-          className="w-80 p-4"
+          className="w-80 p-4 bg-background dark:!bg-gray-900 border dark:!border-gray-700 rounded-lg shadow-lg"
         />
       </TooltipProvider>
     </div>

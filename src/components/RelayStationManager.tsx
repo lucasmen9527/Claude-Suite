@@ -1818,13 +1818,13 @@ const StationDetailView: React.FC<DetailViewProps> = ({ station, onBack, onStati
                                   </Badge>
                                 )}
                                 {token.group && (
-                                  <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950/20">
+                                  <Badge variant="outline" className="bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800">
                                     <Users className="h-3 w-3 mr-1" />
                                     {token.group}
                                   </Badge>
                                 )}
                                 {token.expires_at && token.expires_at !== -1 && (
-                                  <Badge variant="outline" className="bg-orange-50 dark:bg-orange-950/20">
+                                  <Badge variant="outline" className="bg-orange-50 dark:bg-orange-950/20 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800">
                                     <Calendar className="h-3 w-3 mr-1" />
                                     {new Date(token.expires_at * 1000).toLocaleDateString()}
                                   </Badge>
@@ -2122,7 +2122,7 @@ const StationDetailView: React.FC<DetailViewProps> = ({ station, onBack, onStati
                                     <span className="text-sm font-mono font-medium">{log.completion_tokens || 0}</span>
                                   </div>
                                   <div className="bg-green-50 dark:bg-green-950/20 px-2 py-1.5 rounded text-center">
-                                    <span className="text-xs text-muted-foreground block">花费</span>
+                                    <span className="text-xs text-green-700 dark:text-green-300 block">花费</span>
                                     <span className="text-sm font-mono font-medium text-green-600 dark:text-green-400">{formatPrice(log.quota)}</span>
                                   </div>
                                   <div className="bg-muted/40 px-2 py-1.5 rounded text-center">
@@ -2982,13 +2982,13 @@ const RelayStationManager: React.FC<RelayStationManagerProps> = ({ onBack }) => 
         if (!appliedConfig) return null;
 
         return (
-          <Card className="bg-green-50 dark:bg-green-950/20 border-green-200 dark:border-green-800">
+          <Card className="bg-green-50 dark:!bg-blue-900/40 border-green-200 dark:!border-blue-400 dark:shadow-blue-400/20 dark:shadow-xl">
             <div className="p-4">
               <div className="flex items-center gap-2 mb-2">
-                <Shield className="h-4 w-4 text-green-600 dark:text-green-400" />
-                <h4 className="text-sm font-medium text-green-800 dark:text-green-200">当前应用的配置</h4>
+                <Shield className="h-4 w-4 text-green-600 dark:!text-blue-300" />
+                <h4 className="text-sm font-medium text-green-800 dark:!text-blue-100">当前应用的配置</h4>
               </div>
-              <div className="space-y-1 text-xs text-green-700 dark:text-green-300">
+              <div className="space-y-1 text-xs text-green-700 dark:!text-blue-200">
                 {appliedConfig.station ? (
                   <>
                     <p><span className="font-medium">中转站:</span> {appliedConfig.station.name}</p>
@@ -3041,7 +3041,7 @@ const RelayStationManager: React.FC<RelayStationManagerProps> = ({ onBack }) => 
                       {station.adapter === 'custom' ? '自定义' : station.adapter.toUpperCase()}
                     </Badge>
                     {station.adapter === 'custom' && (
-                      <Badge variant="secondary" className="text-xs bg-blue-50 dark:bg-blue-950/20">
+                      <Badge variant="secondary" className="text-xs bg-blue-50 dark:bg-blue-950/20 text-blue-700 dark:text-blue-300">
                         仅配置切换
                       </Badge>
                     )}
@@ -3250,7 +3250,7 @@ const RelayStationManager: React.FC<RelayStationManagerProps> = ({ onBack }) => 
               </div>
               
               {!overwriteExisting && (
-                <div className="text-xs text-muted-foreground bg-blue-50 dark:bg-blue-950/20 p-2 rounded">
+                <div className="text-xs text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/20 p-2 rounded border border-blue-200 dark:border-blue-800">
                   如果存在同名中转站，将跳过导入。启用"覆盖现有中转站"选项将更新现有配置。
                 </div>
               )}
