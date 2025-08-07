@@ -84,8 +84,8 @@ jobs:
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
-        tauriScript: ${{ matrix.os == 'macos' && matrix.arch == 'x86_64' && 'npm run tauri build -- --target x86_64-apple-darwin' || 'npm run tauri' }}
-
+        tauriScript: npm run tauri
+        
     - name: Prepare artifacts (Windows)
       if: matrix.os == 'windows'
       run: |
