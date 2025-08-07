@@ -1049,33 +1049,61 @@ code::-webkit-scrollbar-thumb:hover,
   }
 }
 
-/* Dialog overlay backdrop consistency across themes */
+/* Dialog overlay backdrop consistency across themes with fallback */
 .dialog-overlay-backdrop {
+  /* Fallback solid background for compatibility */
+  background-color: rgba(0, 0, 0, 0.5);
+  
+  /* Backdrop filter for modern browsers */
   backdrop-filter: blur(8px) saturate(150%);
   -webkit-backdrop-filter: blur(8px) saturate(150%);
 }
 
 .dark .dialog-overlay-backdrop {
+  background-color: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(8px) saturate(150%);
   -webkit-backdrop-filter: blur(8px) saturate(150%);
 }
 
 .light .dialog-overlay-backdrop {
+  background-color: rgba(255, 255, 255, 0.3);
   backdrop-filter: blur(8px) saturate(150%) brightness(1.02);
   -webkit-backdrop-filter: blur(8px) saturate(150%) brightness(1.02);
 }
 
+/* Enhanced Radix Dialog overlay support with stronger fallbacks */
 [data-radix-dialog-overlay] {
+  background-color: rgba(0, 0, 0, 0.5) !important;
   backdrop-filter: blur(8px) saturate(150%) !important;
   -webkit-backdrop-filter: blur(8px) saturate(150%) !important;
 }
 
 .dark [data-radix-dialog-overlay] {
+  background-color: rgba(0, 0, 0, 0.6) !important;
   backdrop-filter: blur(8px) saturate(150%) !important;
   -webkit-backdrop-filter: blur(8px) saturate(150%) !important;
 }
 
 .light [data-radix-dialog-overlay] {
+  background-color: rgba(255, 255, 255, 0.3) !important;
   backdrop-filter: blur(8px) saturate(150%) brightness(1.02) !important;
   -webkit-backdrop-filter: blur(8px) saturate(150%) brightness(1.02) !important;
+}
+
+/* Additional fallback for Tauri's WebView environment */
+@supports not (backdrop-filter: blur(8px)) {
+  .dialog-overlay-backdrop,
+  [data-radix-dialog-overlay] {
+    background-color: rgba(0, 0, 0, 0.75) !important;
+  }
+  
+  .dark .dialog-overlay-backdrop,
+  .dark [data-radix-dialog-overlay] {
+    background-color: rgba(0, 0, 0, 0.8) !important;
+  }
+  
+  .light .dialog-overlay-backdrop,
+  .light [data-radix-dialog-overlay] {
+    background-color: rgba(255, 255, 255, 0.5) !important;
+  }
 }
