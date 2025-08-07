@@ -55,7 +55,8 @@
     "macOS": {
       "entitlements": "entitlements.plist",
       "providerShortName": null,
-      "signingIdentity": null
+      "signingIdentity": null,
+      "files": {}
     }
   }
 }
