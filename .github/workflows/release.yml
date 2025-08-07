@@ -80,9 +80,11 @@ jobs:
       run: bun run build
 
     - name: Build Tauri app
-      run: |
-        cd src-tauri
-        ${{ matrix.os == 'macos' && matrix.arch == 'x86_64' && 'cargo tauri build --target x86_64-apple-darwin' || 'cargo tauri build' }}
+      uses: tauri-apps/tauri-action@v0
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tauriScript: ${{ matrix.os == 'macos' && matrix.arch == 'x86_64' && 'npm run tauri build -- --target x86_64-apple-darwin' || 'npm run tauri' }}
 
     - name: Prepare artifacts (Windows)
       if: matrix.os == 'windows'
