@@ -568,6 +568,17 @@ const FloatingPromptInputInner = (
       }
     }
 
+    // Check if file picker should be closed when @ is cleared
+    if (showFilePicker) {
+      // Look for any @ in the current input
+      const hasAt = newValue.includes('@');
+      if (!hasAt) {
+        // No @ found anywhere, close the picker
+        setShowFilePicker(false);
+        setFilePickerQuery("");
+      }
+    }
+
     setPrompt(newValue);
     setCursorPosition(newCursorPosition);
   };

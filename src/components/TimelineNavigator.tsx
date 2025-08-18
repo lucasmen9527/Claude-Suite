@@ -377,7 +377,7 @@ export const TimelineNavigator: React.FC<TimelineNavigatorProps> = ({
   };
 
   return (
-    <div className={cn("space-y-4", className)}>
+    <div className={cn("space-y-4 bg-background/95 backdrop-blur-md rounded-lg p-4", className)}>
       {/* Experimental Feature Warning */}
       <div className="rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-3">
         <div className="flex items-start gap-2">
@@ -392,7 +392,7 @@ export const TimelineNavigator: React.FC<TimelineNavigatorProps> = ({
       </div>
       
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between bg-background/80 backdrop-blur-sm rounded-lg p-3 border border-border/50">
         <div className="flex items-center gap-2">
           <GitBranch className="h-5 w-5 text-muted-foreground" />
           <h3 className="text-sm font-medium">时间线</h3>

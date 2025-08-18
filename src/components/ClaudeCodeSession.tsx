@@ -1549,11 +1549,11 @@ export const ClaudeCodeSession: React.FC<ClaudeCodeSessionProps> = ({
               animate={{ x: 0 }}
               exit={{ x: "100%" }}
               transition={{ type: "spring", damping: 20, stiffness: 300 }}
-              className="fixed right-0 top-0 h-full w-full sm:w-96 bg-background border-l border-border shadow-xl z-30 overflow-hidden"
+              className="fixed right-0 top-0 h-full w-full sm:w-96 bg-background/95 backdrop-blur-md border-l border-border shadow-xl z-30 overflow-hidden"
             >
               <div className="h-full flex flex-col">
                 {/* Timeline Header */}
-                <div className="flex items-center justify-between p-4 border-b border-border">
+                <div className="flex items-center justify-between p-4 border-b border-border bg-background/95 backdrop-blur-sm">
                   <h3 className="text-lg font-semibold">{t('common.sessionTimeline')}</h3>
                   <Button
                     variant="ghost"
@@ -1566,7 +1566,7 @@ export const ClaudeCodeSession: React.FC<ClaudeCodeSessionProps> = ({
                 </div>
                 
                 {/* Timeline Content */}
-                <div className="flex-1 overflow-y-auto p-4">
+                <div className="flex-1 overflow-y-auto p-4 bg-background/80 backdrop-blur-sm">
                   <TimelineNavigator
                     sessionId={effectiveSession.id}
                     projectId={effectiveSession.project_id}
