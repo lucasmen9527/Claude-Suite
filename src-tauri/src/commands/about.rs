@@ -89,12 +89,25 @@ pub async fn check_for_updates() -> Result<UpdateInfo, String> {
     let download_url = release_data
         .get("assets")
         .and_then(|assets| assets.as_array())
-        .and_then(|assets| assets.iter().find(|asset| {
-            asset.get("name")
-                .and_then(|name| name.as_str())
-                .map(|name| name.ends_with(".exe") || name.ends_with(".msi"))
-                .unwrap_or(false)
-        }))
+        .and_then(|assets| {
+            // Determine appropriate file extension based on OS
+            let target_extensions = if cfg!(target_os = "windows") {
+                vec![".exe", ".msi"]
+            } else if cfg!(target_os = "macos") {
+                vec![".dmg", ".app.tar.gz"]
+            } else if cfg!(target_os = "linux") {
+                vec![".AppImage", ".deb", ".tar.gz"]
+            } else {
+                vec![".exe", ".msi"] // fallback to Windows
+            };
+            
+            assets.iter().find(|asset| {
+                asset.get("name")
+                    .and_then(|name| name.as_str())
+                    .map(|name| target_extensions.iter().any(|ext| name.ends_with(ext)))
+                    .unwrap_or(false)
+            })
+        })
         .and_then(|asset| asset.get("browser_download_url"))
         .and_then(|url| url.as_str())
         .map(|url| url.to_string());
