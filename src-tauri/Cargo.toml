@@ -1,6 +1,6 @@
 [package]
 name = "claude-suite"
-version = "1.1.4"
+version = "1.1.5"
 description = "Claude Suite - Professional desktop application and toolkit for Claude CLI"
 authors = ["xiniah"]
 license = "AGPL-3.0"
