@@ -12,32 +12,53 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS-blue)](https://github.com/lucasmen9527/claude-suite)
 
-## ✨ 特性
+## ✨ 核心功能特性
 
-### 🎯 核心功能
-- **项目管理**: 可视化管理 Claude 项目，支持会话历史和检查点
-- **实时交互**: 流式显示 Claude 响应，支持 Markdown 渲染和语法高亮
-- **智能代理**: Agent 系统支持 GitHub 集成和自动化任务执行
-- **MCP 支持**: 完整的 Model Context Protocol 服务器管理
+### 📁 智能项目管理
+- 可视化管理所有 Claude Code 项目
+- 项目活动时间追踪和会话历史
+- 一键创建新的 Claude Code 会话
+- 项目路径智能识别和管理
 
-### 🔧 代理商管理（主要功能）
-- **一键切换**: 静默切换不同的 Claude API 代理商，无弹窗干扰
-- **隐私安全**: 本地存储配置，零硬编码敏感信息
-- **自由配置**: 完整的 CRUD 操作界面，支持自定义代理商
-- **立即生效**: 自动重启 Claude 进程，配置立即生效
-- **智能识别**: 自动检测和显示当前使用的配置
+### 💬 强大的 AI 交互界面
+- 实时流式 Claude 响应显示
+- 支持 15+ 专业开发工具 (Task、Bash、Glob、Grep、Read、Edit、Write 等)
+- 完整的 MCP (Model Context Protocol) 支持 (39个服务)
+- Markdown 渲染和代码语法高亮
+- 多模型支持 (Claude 4 Sonnet 等)
 
-### 🍎 macOS 特别优化
-- **智能 PATH 检测**: 自动扫描 NVM、Homebrew 等开发环境路径
-- **环境变量增强**: 解决 macOS 应用启动时的环境变量限制
-- **DMG 安装包**: 提供标准的 macOS 安装体验
-- **原生权限管理**: 正确的 macOS 安全权限配置
+### 📊 详细使用统计分析
+- 实时费用监控和成本分析
+- Token 使用量统计 (输入/输出)
+- 会话数量和使用趋势
+- 热门项目和模型使用分析
+- 平均会话成本计算
 
-### 🌟 用户体验
-- **多语言支持**: 中文优先的国际化界面
-- **主题切换**: 支持明暗主题，使用 OKLCH 色彩空间
-- **响应式设计**: 适配不同屏幕尺寸的桌面应用
-- **键盘快捷键**: 丰富的快捷键支持，提升操作效率
+### ⚙️ 完整配置管理
+- 环境变量可视化管理
+- API 令牌和基础 URL 配置
+- Claude CLI 参数自定义
+- 一键添加/编辑/删除配置项
+
+### 🍎 macOS 深度优化
+- 智能 PATH 检测，自动扫描 NVM、Homebrew 环境
+- 解决 DMG 应用环境变量限制问题
+- 原生 macOS 用户体验和权限管理
+- 标准 DMG 安装包，支持系统集成
+
+## 📸 应用截图
+
+| 主界面 | 项目管理 |
+|:---:|:---:|
+| ![主界面](screenshots/01-main-interface.png) | ![项目管理](screenshots/02-project-management.png) |
+
+| Claude 交互界面 | 使用情况仪表板 |
+|:---:|:---:|
+| ![Claude 交互](screenshots/03-claude-chat-interface.png) | ![使用统计](screenshots/04-usage-dashboard.png) |
+
+| 设置与配置 |
+|:---:|
+| ![设置页面](screenshots/05-settings-environment.png) |
 
 ## 🚀 快速开始
 
