@@ -814,17 +814,9 @@ pub async fn check_claude_version(app: AppHandle) -> Result<ClaudeVersionStatus,
     debug!("Claude path: {}", claude_path);
 
     // For system installations, try to check version
-    let mut cmd = std::process::Command::new(&claude_path);
+    let mut cmd = create_command_with_env(&claude_path);
     cmd.arg("--version");
-    
-    // On Windows, ensure the command runs without creating a console window
-    #[cfg(target_os = "windows")]
-    {
-        use std::os::windows::process::CommandExt;
-        cmd.creation_flags(0x08000000); // CREATE_NO_WINDOW
-    }
-    
-    let output = cmd.output();
+    let output = cmd.output().await;
 
     match output {
         Ok(output) => {

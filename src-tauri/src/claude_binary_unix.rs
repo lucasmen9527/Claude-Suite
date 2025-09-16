@@ -156,11 +156,11 @@ fn store_claude_path(app_handle: &tauri::AppHandle, path: &str) -> Result<(), St
 }
 
 /// Test if a Claude binary is actually functional on Unix
-fn test_claude_binary(path: &str) -> bool {    
+fn test_claude_binary(path: &str) -> bool {
     debug!("Testing Claude binary at: {}", path);
-    
-    // Test with a simple --version command 
-    let mut cmd = Command::new(path);
+
+    // Test with a simple --version command
+    let mut cmd = create_command_with_env(path);
     cmd.arg("--version");
     
     match cmd.output() {
@@ -270,7 +270,9 @@ fn discover_unix_installations() -> Vec<ClaudeInstallation> {
 fn try_which_command() -> Option<ClaudeInstallation> {
     debug!("Trying 'which claude' to find binary...");
 
-    match Command::new("which").arg("claude").output() {
+    let mut cmd = create_command_with_env("which");
+    cmd.arg("claude");
+    match cmd.output() {
         Ok(output) if output.status.success() => {
             let output_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
 
@@ -422,7 +424,9 @@ fn find_standard_installations() -> Vec<ClaudeInstallation> {
     }
 
     // Also check if claude is available in PATH (without full path)
-    if let Ok(output) = Command::new("claude").arg("--version").output() {
+    let mut cmd = create_command_with_env("claude");
+    cmd.arg("--version");
+    if let Ok(output) = cmd.output() {
         if output.status.success() {
             debug!("claude is available in PATH");
             let version = extract_version_from_output(&output.stdout);
@@ -677,7 +681,9 @@ fn extract_binary_from_desktop_file(desktop_path: &PathBuf, source_prefix: &str)
 
 /// Get Claude version by running --version command on Unix
 fn get_claude_version(path: &str) -> Result<Option<String>, String> {
-    match Command::new(path).arg("--version").output() {
+    let mut cmd = create_command_with_env(path);
+    cmd.arg("--version");
+    match cmd.output() {
         Ok(output) => {
             if output.status.success() {
                 Ok(extract_version_from_output(&output.stdout))
@@ -721,7 +727,7 @@ fn extract_version_from_output(stdout: &[u8]) -> Option<String> {
     None
 }
 
-/// Select the best installation based on version
+/// Select the best installation based on version and source preference
 fn select_best_installation(installations: Vec<ClaudeInstallation>) -> Option<ClaudeInstallation> {
     // In production builds, version information may not be retrievable because
     // spawning external processes can be restricted. We therefore no longer
@@ -732,21 +738,32 @@ fn select_best_installation(installations: Vec<ClaudeInstallation>) -> Option<Cl
     // most recent version.
     installations.into_iter().max_by(|a, b| {
         match (&a.version, &b.version) {
-            // If both have versions, compare them semantically.
-            (Some(v1), Some(v2)) => compare_versions(v1, v2),
+            // If both have versions, compare them semantically first, then by source preference
+            (Some(v1), Some(v2)) => {
+                match compare_versions(v1, v2) {
+                    Ordering::Equal => {
+                        // If versions are equal, prefer by source (lower score is better)
+                        source_preference(b).cmp(&source_preference(a))
+                    }
+                    other => other,
+                }
+            }
             // Prefer the entry that actually has version information.
             (Some(_), None) => Ordering::Greater,
             (None, Some(_)) => Ordering::Less,
-            // Neither have version info: prefer the one that is not just
-            // the bare "claude" lookup from PATH, because that may fail
-            // at runtime if PATH is modified.
+            // Neither have version info: prefer by source, then avoid bare "claude" paths
             (None, None) => {
-                if a.path == "claude" && b.path != "claude" {
-                    Ordering::Less
-                } else if a.path != "claude" && b.path == "claude" {
-                    Ordering::Greater
-                } else {
-                    Ordering::Equal
+                match source_preference(a).cmp(&source_preference(b)) {
+                    Ordering::Equal => {
+                        if a.path == "claude" && b.path != "claude" {
+                            Ordering::Less
+                        } else if a.path != "claude" && b.path == "claude" {
+                            Ordering::Greater
+                        } else {
+                            Ordering::Equal
+                        }
+                    }
+                    other => other.reverse(), // Reverse because lower source_preference score is better
                 }
             }
         }
@@ -792,18 +809,106 @@ fn compare_versions(a: &str, b: &str) -> Ordering {
     Ordering::Equal
 }
 
+/// Build enhanced PATH for macOS applications to find Node.js, Claude CLI, and other tools
+/// This is crucial for DMG applications that don't inherit shell environment
+fn build_enhanced_path() -> String {
+    let mut path_components = Vec::new();
+
+    // 1. Start with current PATH if available
+    if let Ok(current_path) = std::env::var("PATH") {
+        path_components.push(current_path);
+    }
+
+    // 2. Add common development tool paths
+    let common_paths = vec![
+        // Node.js via NVM (scan all versions, prioritize latest)
+        get_latest_nvm_path(),
+        // Homebrew paths
+        "/opt/homebrew/bin".to_string(),
+        "/opt/homebrew/sbin".to_string(),
+        "/usr/local/bin".to_string(),
+        "/usr/local/sbin".to_string(),
+        // System paths
+        "/usr/bin".to_string(),
+        "/bin".to_string(),
+        "/usr/sbin".to_string(),
+        "/sbin".to_string(),
+        // User paths
+        format!("{}/.local/bin", std::env::var("HOME").unwrap_or_default()),
+        format!("{}/.cargo/bin", std::env::var("HOME").unwrap_or_default()),
+        format!("{}/.bun/bin", std::env::var("HOME").unwrap_or_default()),
+    ];
+
+    // Add non-empty paths
+    for path in common_paths {
+        if !path.is_empty() && std::path::Path::new(&path).exists() {
+            path_components.push(path);
+        }
+    }
+
+    let final_path = path_components.join(":");
+    info!("Enhanced PATH for macOS app: {}", final_path);
+    final_path
+}
+
+/// Get the latest NVM Node.js version path
+fn get_latest_nvm_path() -> String {
+    if let Ok(home) = std::env::var("HOME") {
+        let nvm_versions = std::path::PathBuf::from(&home)
+            .join(".nvm")
+            .join("versions")
+            .join("node");
+
+        if nvm_versions.exists() {
+            if let Ok(entries) = std::fs::read_dir(&nvm_versions) {
+                let mut versions: Vec<_> = entries
+                    .filter_map(|entry| {
+                        entry.ok().and_then(|e| {
+                            let name = e.file_name().to_string_lossy().to_string();
+                            if name.starts_with('v') {
+                                Some((name, e.path().join("bin")))
+                            } else {
+                                None
+                            }
+                        })
+                    })
+                    .collect();
+
+                // Sort versions to get the latest
+                versions.sort_by(|a, b| {
+                    // Simple version comparison (v22.18.0 > v20.0.0)
+                    let a_version = &a.0[1..]; // Remove 'v' prefix
+                    let b_version = &b.0[1..];
+                    compare_versions(b_version, a_version) // Reverse for descending order
+                });
+
+                if let Some((_, bin_path)) = versions.first() {
+                    let path_str = bin_path.to_string_lossy().to_string();
+                    info!("Found latest NVM Node.js path: {}", path_str);
+                    return path_str;
+                }
+            }
+        }
+    }
+
+    String::new()
+}
+
 /// Helper function to create a Command with proper environment variables for Unix
 /// This ensures commands like Claude can find Node.js and other dependencies
 pub fn create_command_with_env(program: &str) -> Command {
     let mut cmd = Command::new(program);
-    
+
     info!("Creating command for: {}", program);
+
+    // Build a comprehensive PATH for macOS applications
+    let enhanced_path = build_enhanced_path();
+    cmd.env("PATH", enhanced_path);
 
     // Inherit essential environment variables from parent process
     for (key, value) in std::env::vars() {
-        // Pass through PATH and other essential environment variables
-        if key == "PATH"
-            || key == "HOME"
+        // Pass through other essential environment variables (excluding PATH since we build our own)
+        if key == "HOME"
             || key == "USER"
             || key == "SHELL"
             || key == "LANG"
